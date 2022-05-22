@@ -1,0 +1,355 @@
+﻿using MelonLoader;
+using ModThatIsNotMod;
+using StressLevelZero.Interaction;
+using StressLevelZero.Pool;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
+using UnityEngine;
+
+namespace Jevil;
+
+/// <summary>
+/// A collection of utility methods I felt the need for while making Chaos. This may get refactored into a bunch of smaller classes
+/// </summary>
+public static class Utilities
+{
+    static Utilities()
+    {
+        IsSevenSeas();
+        IsSevenSeas();
+        IsSevenSeas();
+        // make sure the runtime inlines it 
+        
+    }
+
+    /// <summary>
+    /// All relevant binding flags (Public, NonPublic, Instance, Static)
+    /// </summary>
+    public const BindingFlags AllBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    static readonly MethodInfo hashMethodInfo = AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "ModThatIsNotMod")
+        .GetType("ModThatIsNotMod.Internals.MelonHashChecking")
+        .GetMethod("GetMelonHash", BindingFlags.Static | BindingFlags.Public);
+
+    /// <summary>
+    /// Checks to see if the hash of the currently running executable is genuine.
+    /// </summary>
+    /// <returns>If the hash of the game is equal to the 1.6 version of BONEWORKS bought from Steam</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] // should hopefully prevent harmony patches from getting to this, in case any prospective pirates think theyre slick.
+    public static bool IsSevenSeas()
+    {
+        return hashMethodInfo.Invoke(null, new object[] { MelonUtils.GetApplicationPath() }) as string == "1cf5b055a5dd6be6d15d6db9c0f994fb";
+    }
+
+    /// <summary>
+    /// Looks for <paramref name="objectName"/> 
+    /// </summary>
+    /// <param name="objectName">name of the pool</param>
+    /// <returns><see langword="null"/> if the pool was not found, otherwise the prefab.</returns>
+    public static GameObject GetPrefabOfPool(string objectName)
+    {
+        foreach (Il2CppSystem.Collections.Generic.KeyValuePair<string, Pool> dynamicPool in PoolManager.DynamicPools)
+        {
+            if (dynamicPool.Key == objectName)
+                return dynamicPool.Value.Prefab;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Uses <see cref="UnityEngine.Random.Range(int, int)"/> to determine what to return.
+    /// </summary>
+    /// <returns><see cref="Player.leftHand"/> or <see cref="Player.rightHand"/></returns>
+    public static Hand GetRandomPlayerHand()
+    {
+        int randomNum = UnityEngine.Random.Range(0, 2);
+        if (randomNum == 1)
+            return Player.leftHand;
+        else
+            return Player.rightHand;
+    }
+
+    /// <summary>
+    /// Spawns a <see cref="ModThatIsNotMod"/> Ad and then moves it in front of, and makes it face, the player.
+    /// </summary>
+    /// <param name="str">The text to be displayed on the Ad.</param>
+    /// <returns></returns>
+    public static GameObject SpawnAd(string str)
+    {
+        GameObject ad = ModThatIsNotMod.RandomShit.AdManager.CreateNewAd(str);
+        MoveAndFacePlayer(ad);
+        return ad;
+    }
+
+    /// <summary>
+    /// <see cref="UnityEngine.Object.FindObjectsOfTypeAll(Il2CppSystem.Type)"/> except LINQ Select'd to Cast to the given type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">A type extending <see cref="UnityEngine.Object"/></typeparam>
+    /// <returns>The output of FindObjectsOfTypeAll, ran through Select. It is recommended you ToArray it to avoid running the selector every access.</returns>
+    public static IEnumerable<T> FindAll<T>() where T : UnityEngine.Object
+    {
+        return GameObject.FindObjectsOfTypeAll(UnhollowerRuntimeLib.Il2CppType.Of<T>()).Select(obj => obj.Cast<T>());
+    }
+
+    /// <summary>
+    /// Basically the <c>Split</c> method on <see cref="string"/>, but it returns a 2 element array instead. It's hard to describe without an example
+    /// <code>
+    /// Argsify("part1,part2,alsopart2", ','); // Returns { "part1", "part2,alsopart2" } 
+    /// </code>
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="split"></param>
+    /// <returns>The first element alone, with the following elements joined in one string.</returns>
+    public static string[] Argsify(string data, char split)
+    {
+        string[] args = data.Split(split);
+        string arg = args[0];
+        string argg = string.Join(split.ToString(), args.Skip(1));
+        return new string[] { arg, argg };
+    }
+
+    /// <summary>
+    /// Takes the byte representation of a <see cref="Vector3"/> and returns the Vector3 it represents. Useful for Entanglement.
+    /// </summary>
+    /// <param name="bytes">
+    /// The byte representation of a Vector3, AKA the byte representation of 3 <see cref="float"/>s.
+    /// <para>Debug builds have a check to warn in case the source array is too short for the given <paramref name="startIdx"/> or if it's not the correct size.</para>
+    /// </param>
+    /// <param name="startIdx">The index to start taking bytes from the <paramref name="bytes"/> array to represent as floats to construct a new <see cref="Vector3"/></param>
+    /// <returns></returns>
+    public static Vector3 DebyteV3(byte[] bytes, int startIdx = 0)
+    {
+#if DEBUG
+        if (startIdx == 0 && bytes.Length != Const.SizeV3) JeviLib.Warn($"Trying to debyte a Vector3 of length {bytes.Length}, this is not the expected {Const.SizeV3} bytes!");
+        if (startIdx + (sizeof(float) * 3) > bytes.Length) JeviLib.Warn($"{bytes.Length} is too short for the given index of {startIdx}");
+#endif
+        return new Vector3(
+            BitConverter.ToSingle(bytes, startIdx),
+            BitConverter.ToSingle(bytes, startIdx + sizeof(float)),
+            BitConverter.ToSingle(bytes, startIdx + sizeof(float) * 2));
+    }
+
+    /// <summary>
+    /// Takes the output of <see cref="SerializeMesh(Vector3[])"/> and converts it into vertices (that can be piped into <see cref="MeshFilter.mesh"/>)
+    /// <para>Can also be used to serialize a bunch of positions and rotations, and then deserialize them. IDK what for, that one's for you to decide.</para>
+    /// </summary>
+    /// <param name="bytes">Byte representation of the mesh vertices</param>
+    /// <returns>The vertices</returns>
+    public static Vector3[] DeserializeMesh(byte[] bytes)
+    {
+        Vector3[] result = new Vector3[bytes.Length / Const.SizeV3];
+#if DEBUG
+        if (bytes.Length % Const.SizeV3 != 0) JeviLib.Warn("Malformed byte array - not divisible by the size of a vector3");
+#endif
+        for (int i = 0; i < bytes.Length; i += Const.SizeV3)
+        {
+            result[i / Const.SizeV3] = DebyteV3(bytes, i);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Serializes a mesh into bytes to be saved or networked.
+    /// </summary>
+    /// <param name="vectors">Mesh vertices</param>
+    /// <returns>An array of the mesh vertices, represented as bytes.</returns>
+    public static byte[] SerializeMesh(Vector3[] vectors)
+    {
+        byte[] bytes = new byte[vectors.Length * sizeof(float) * 3];
+        for (int i = 0; i < vectors.Length; i++)
+        {
+            int offset = i * sizeof(float) * 3;
+            byte[] _vecB = vectors[i].ToBytes();
+            Buffer.BlockCopy(_vecB, 0, bytes, offset, sizeof(float) * 3);
+        }
+        return bytes;
+    }
+
+    /// <summary>
+    /// Moves an object in front of the player and rotates it to face the player, with its up remaining the global up.
+    /// </summary>
+    /// <param name="obj">The object to move and rotate</param>
+    public static void MoveAndFacePlayer(GameObject obj)
+    {
+        Transform phead = Instances.Player_PhysBody.rbHead.transform;
+        Vector3 position = phead.position + phead.forward.normalized * 2;
+        Quaternion rotation = Quaternion.LookRotation(obj.transform.position - phead.position, Vector3.up);
+        obj.transform.SetPositionAndRotation(position, rotation);
+    }
+
+
+    /* Input: [
+     *      [1,2,3,4,5,6,7]
+     *      [2,3,4,5,6,7,8,9,10]
+     * ]
+     * Output: [
+     *      3, <- header, says how many things there are
+     *      ushorts(7,9)  <- header, says where to split
+     *      1,2,3,4,5,6,7,
+     *      2,3,4,5,6,7,8,9,10
+     *      
+     * ]
+     */
+    /// <summary>
+    /// So I basically made this method over the course of a few days in my Comp Sci class and I dont quite recall how it works aside from the rundown.
+    /// <para>The first byte dictates how many arrays were in the source 2dArray. The following <c>[value of the first byte] * 2</c> bytes compose the rest of the header.</para>
+    /// <para>The next pairs of bytes are used as ushorts that tell how long each corresponding array was</para>
+    /// </summary>
+    /// <param name="bytess">The source arrays to be joined together.</param>
+    /// <returns>A single array consisting of a header and the values of the source arrays.</returns>
+    public static byte[] JoinBytes(byte[][] bytess)
+    {
+        byte arrayCount = (byte)bytess.Length;
+        // bytes.Length - 1 because you dont put a delim at the end (unless youre weird i guess, but im not)
+        List<ushort> indices = new(bytess.Length - 1);
+        byte[] bytesJoined = new byte[(bytess.Length * 2 + 1) + bytess.Sum(b => b.Length)];
+        // need to get the indices beforehand to compose the header
+        foreach (byte[] arr in bytess)
+        {
+            indices.Add((ushort)arr.Length);
+        }
+        // Compose the header
+        bytesJoined[0] = arrayCount;
+        for (int i = 0; i < indices.Count; i++)
+        {
+            ushort idx = indices[i];
+            BitConverter.GetBytes(idx).CopyTo(bytesJoined, i * sizeof(ushort) + 1);
+        }
+
+        ushort lastLen = 0;
+        int index = arrayCount * 2 + 1;
+        for (int i = 0; i < arrayCount; i++)
+        {
+            int thisLen = indices[i];
+            Buffer.BlockCopy(bytess[i], 0, bytesJoined, index, thisLen);
+
+            // set the next index
+            lastLen = (ushort)thisLen;
+            index += thisLen;
+        }
+
+        return bytesJoined;
+    }
+
+    /// <summary>
+    /// Split an array of bytes recieved from <see cref="JoinBytes(byte[][])"/> into an array of arrays.
+    /// </summary>
+    /// <param name="bytes">The byte array with the proper header generated by JoinBytes This method will malfunction if the header is malformed.</param>
+    /// <returns>A byte-for-byte copy of the original byte[][] before it was sent to <see cref="JoinBytes(byte[][])"/> and likely sent over Entanglement</returns>
+    internal static byte[][] SplitBytes(byte[] bytes)
+    {
+        // Grab data from the header
+        // get number of splits
+        int splitsCount = bytes[0];
+        // actually get the list of element sizes
+        int[] splitIndices = new int[splitsCount];
+        for (int i = 0; i < splitsCount; i++)
+        {
+            // add 1 to skip the byte that says how many split indicies there are
+            ushort idx = BitConverter.ToUInt16(bytes, 1 + i * sizeof(ushort));
+            splitIndices[i] = idx;
+        }
+
+        byte[][] res = new byte[splitsCount][];
+        // start after the header
+        int lastIdx = splitsCount * sizeof(ushort) + 1;
+        for (int i = 0; i < res.Length; i++)
+        {
+            int len = splitIndices[i];
+            // dont overallocate lest there be a dead byte
+            byte[] arr = new byte[len];
+            // copy the bytes
+            Buffer.BlockCopy(bytes, lastIdx, arr, 0, len);
+
+
+            // save our changes to the array 
+            res[i] = arr;
+            // perpetuate the nevereding cycle
+            lastIdx += len;
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Returns a user-friendly name from the name of a member. Only works with camelCase.
+    /// </summary>
+    /// <param name="name">Member name, like "modToggleEnable"</param>
+    /// <returns>Friendly name, like "Mod Enable Toggle"</returns>
+    public static string GenerateFriendlyMemberName(string name)
+    {
+        StringBuilder builder = new(name.Length);
+        builder.Append(char.ToUpper(name[0]));
+
+        for (int i = 1; i < name.Length; i++)
+        {
+            // use char's cause theyre on the stack not heap, and i want to avoid allocating shit 
+            char character = name[i];
+
+            if (char.IsUpper(character))
+            {
+                builder.Append(' ');
+                builder.Append(char.ToUpper(character));
+            }
+            else builder.Append(character);
+        }
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Redirect to <see cref="Extensions.Flatten(byte[][])"/>
+    /// <br>Joins an array of bytes directly one after another, without regard for reproduceability. Use this for things of fixed size, like byte representations of <see cref="float"/>s or <see cref="int"/>s.</br>
+    /// </summary>
+    /// <param name="arrays">The arrays to be concatenated one after another.</param>
+    /// <returns>An array of bytes whose length is equal to the sum of the lengths of the input arrays.</returns>
+    public static byte[] Flatten(params byte[][] arrays) => Extensions.Flatten(arrays);
+
+    /// <summary>
+    /// Takes an embedded resource from "Resources/EntanglementSync.dll" out of the caller (that's you!) and loads it if Entanglement is installed.
+    /// </summary>
+    /// <param name="rootFolderName">
+    /// The root folder name for your resources. Will default to the name of your assembly, with spaces replaced by underscores. 
+    /// <para><see cref="Assembly.GetManifestResourceNames()"/></para>
+    /// </param>
+    /// <returns>Whether or not your module attempted setup. Will be false if "Resources/EntanglementSync.dll" doesn't exist or if Entanglement isn't installed.</returns>
+    public static bool LoadSyncAssembly(string rootFolderName = null)
+    {
+        Assembly caller = Assembly.GetCallingAssembly();
+        try
+        {
+            string asmName = rootFolderName ?? caller.GetName().Name.Replace(' ', '_');
+            byte[] asmRaw = caller.GetEmbeddedResource(asmName + ".Resources.EntanglementSync.dll");
+            Assembly syncAsm = Assembly.Load(asmRaw);
+
+            // First, check if Entanglement is loaded
+            Assembly entanglementAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(asm => asm.GetName().Name == "Entanglement");
+
+            // Then get the ModuleHandler dynamically
+            Type moduleHandlerType = entanglementAssembly.GetType("Entanglement.Modularity.ModuleHandler");
+
+            // Then try to get SetupModule()
+            MethodInfo setupModuleMethod = moduleHandlerType.GetMethod("SetupModule", BindingFlags.Static | BindingFlags.Public);
+
+            // Then call the setup method reflectively
+            setupModuleMethod.Invoke(null, new object[] { syncAsm });
+
+            JeviLib.Log("Loaded Entanglement module from " + caller.GetName().Name);
+
+            return true;
+        }
+#if DEBUG
+        catch (Exception ex)
+        {
+            JeviLib.Error(ex);
+            return false;
+        }
+#else
+        catch { return false; }
+#endif
+    }
+}
