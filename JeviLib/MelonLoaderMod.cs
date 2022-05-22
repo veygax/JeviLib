@@ -57,9 +57,8 @@ public class JeviLib : MelonMod
     /// <summary>
     /// Update references in <see cref="Instances"/>
     /// </summary>
-    /// <param name="buildIndex"></param>
-    /// <param name="sceneName"></param>
-
+    /// <param name="buildIndex">idk bro ask melonloader</param>
+    /// <param name="sceneName">idk bro ask melonloader</param>
     public override void OnSceneWasInitialized(int buildIndex, string sceneName)
     {
 #if DEBUG
@@ -111,20 +110,20 @@ public class JeviLib : MelonMod
 #endif
     }
 
-#if DEBUG
-    private GameObject tweenTarget;
-    /// <summary>
-    /// Tweener debugger
-    /// </summary>
-    public override void OnGUI()
-    {
-        if (GUI.Button(new(25, 25, 125, 20), "Spawn cube")) tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        if (GUI.Button(new(25, 50, 125, 20), "Pos -> V3.One")) tweenTarget.transform.TweenPosition(Vector3.one, 1);
-        if (GUI.Button(new(25, 75, 125, 20), "Pos -> -V3.One")) tweenTarget.transform.TweenPosition(-Vector3.one, 1);
-        if (GUI.Button(new(25, 100, 125, 20), "Scl -> V3.One")) tweenTarget.transform.TweenLocalScale(Vector3.one, 1);
-        if (GUI.Button(new(25, 125, 125, 20), "Scl -> V3.Zero")) tweenTarget.transform.TweenLocalScale(Vector3.zero, 1);
-    }
-#endif
+//#if DEBUG
+//    private GameObject tweenTarget;
+//    /// <summary>
+//    /// Tweener debugger
+//    /// </summary>
+//    public override void OnGUI()
+//    {
+//        if (GUI.Button(new(25, 25, 125, 20), "Spawn cube")) tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+//        if (GUI.Button(new(25, 50, 125, 20), "Pos -> V3.One")) tweenTarget.transform.TweenPosition(Vector3.one, 1);
+//        if (GUI.Button(new(25, 75, 125, 20), "Pos -> -V3.One")) tweenTarget.transform.TweenPosition(-Vector3.one, 1);
+//        if (GUI.Button(new(25, 100, 125, 20), "Scl -> V3.One")) tweenTarget.transform.TweenLocalScale(Vector3.one, 1);
+//        if (GUI.Button(new(25, 125, 125, 20), "Scl -> V3.Zero")) tweenTarget.transform.TweenLocalScale(Vector3.zero, 1);
+//    }
+//#endif
 
     #region MelonLogger replacements
 

@@ -10,7 +10,7 @@ namespace Jevil.Tweening;
 /// <summary>
 /// Tween that acts on a Transform's local scale. An instance of this is returned by <see cref="TweenExtensions.TweenLocalScale(Transform, Vector3, float)"/>
 /// </summary>
-public class ScaleTween : Tween<Vector3>
+public sealed class ScaleTween : Tween<Vector3>
 {
     private (float start, float end) xComp;
     private (float start, float end) yComp;
