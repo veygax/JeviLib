@@ -20,7 +20,7 @@ public sealed class PositionTween : Tween<Vector3>
     private (float start, float end) yComp;
     private (float start, float end) zComp;
 
-    internal PositionTween(Transform transform, Vector3 target, float length, bool isLocal) 
+    internal PositionTween(Transform transform, Vector3 target, float length, bool isLocal)
         : base(target,
                length,
                transform,
