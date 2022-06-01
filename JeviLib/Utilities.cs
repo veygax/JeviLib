@@ -345,7 +345,7 @@ public static class Utilities
 #if DEBUG
         catch (Exception ex)
         {
-            JeviLib.Error(ex);
+            JeviLib.Warn("Failed to load sync assembly, here's why. This likely doesn't matter to you, but here you go:\n" + ex);
             return false;
         }
 #else
