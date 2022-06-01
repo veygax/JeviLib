@@ -405,4 +405,23 @@ public static class Extensions
     {
         return enc.GetString(bytes, startOffset, bytes.Length - startOffset);
     }
+
+    /// <summary>
+    /// Returns an enumerator for every child that the given GameObject <paramref name="go"/> has.
+    /// <para>Debug builds throw an <see cref="InvalidOperationException"/> if the child count changes mid-iteration.</para>
+    /// </summary>
+    /// <param name="go">The GameObject to have its transforms children enumerated.</param>
+    /// <returns>An IEnumerator for the GameObject's children that can be used with a foreach loop.</returns>
+    public static IEnumerator<Transform> GetEnumerator(this GameObject go)
+    {
+        Transform t = go.transform;
+        int childCount = t.childCount;
+        for (int i = 0; i < childCount; i++)
+        {
+#if DEBUG
+            if (t.childCount != childCount) throw new InvalidOperationException("The child count of a transform should not be modified while it is being enumerated!");
+#endif
+            yield return t.GetChild(i);
+        }
+    }
 }
