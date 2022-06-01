@@ -3,6 +3,8 @@ using ModThatIsNotMod;
 using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
+using MelonLoader.Assertions;
+using StressLevelZero.Pool;
 using Jevil.Tweening;
 
 namespace Jevil;
@@ -12,8 +14,14 @@ internal static class BuildInfo
     public const string Name = "JeviLib"; // Name of the Mod.  (MUST BE SET)
     public const string Author = "extraes"; // Author of the Mod.  (Set as null if none)
     public const string Company = null; // Company that made the Mod.  (Set as null if none)
-    public const string Version = "1.0.0"; // Version of the Mod.  (MUST BE SET)
+    public const string Version = "1.1.0"; // Version of the Mod.  (MUST BE SET)
     public const string DownloadLink = null; // Download Link for the Mod.  (Set as null if none)
+    public const bool Debug
+#if DEBUG
+        = true;
+#else
+        = false;
+#endif
 }
 
 /// <summary>
@@ -32,18 +40,25 @@ public class JeviLib : MelonMod
     /// </summary>
     public override void OnApplicationStart()
     {
-        Log("Initialized " + nameof(JeviLib) + " v" + BuildInfo.Version);
+        Stopwatch sw = Stopwatch.StartNew();
+
 #if DEBUG
         Log("This version of " + nameof(JeviLib) + " has been built with the DEBUG compiler flag!");
         Log("Functionality will remain in tact for the most part, however there will be extra log points to warn you if there is anything worrying about your usage of the library.");
         Log("You should only be using this build if you create code mods, and not if you simply use mods. Do not rely on the extra checks in this build, or require the use of a debug build for your production code.");
 #endif
 
+        // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
         go.AddComponent<NeverCollect>();
         go.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
         GameObject.DontDestroyOnLoad(go);
         Instances.NeverCancel = go;
+
+        Spawning.Zombies.Init();
+
+        sw.Stop();
+        LoggerInstance.Msg(System.ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{BuildInfo.Version}{(BuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
@@ -62,6 +77,8 @@ public class JeviLib : MelonMod
     public override void OnSceneWasInitialized(int buildIndex, string sceneName)
     {
 #if DEBUG
+        LemonAssert.IsFalse(Instances.NeverCancel == null, "Instances.NeverCancel == null <- should be FALSE at all times!");
+
         Stopwatch sw = Stopwatch.StartNew();
 #endif
         // Grab the necessary references when the scene starts. 
@@ -105,6 +122,8 @@ public class JeviLib : MelonMod
         Instances.SFXPlayer.source.volume = 0.25f;
         Instances.SFXPlayer.enabled = true;
 
+        Spawning.Ammo.Init();
+
 #if DEBUG
         Log("Found our instances in " + sw.ElapsedMilliseconds + "ms.");
 #endif
@@ -122,6 +141,8 @@ public class JeviLib : MelonMod
 //        if (GUI.Button(new(25, 75, 125, 20), "Pos -> -V3.One")) tweenTarget.transform.TweenPosition(-Vector3.one, 1);
 //        if (GUI.Button(new(25, 100, 125, 20), "Scl -> V3.One")) tweenTarget.transform.TweenLocalScale(Vector3.one, 1);
 //        if (GUI.Button(new(25, 125, 125, 20), "Scl -> V3.Zero")) tweenTarget.transform.TweenLocalScale(Vector3.zero, 1);
+//        if (GUI.Button(new(25, 150, 125, 20), "Rot -> Euler(V3.Zero)")) tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1);
+//        if (GUI.Button(new(25, 175, 125, 20), "Rot -> Euler(0,180,0)")) tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1);
 //    }
 //#endif
 
