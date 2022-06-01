@@ -56,4 +56,80 @@ public static class TweenExtensions
         Tweener.AddTween(tween);
         return tween;
     }
+
+    /// <summary>
+    /// Tween an <see cref="AudioSource"/>'s volume. You can use this in combination with <see cref="TweenTweenExtensions.RunOnFinish{T}(T, Action)"/> to call <see cref="AudioSource.Stop"/> if you want to smoothly stop an AudioPlayer.
+    /// </summary>
+    /// <param name="a">The AudioSource to be acted upon.</param>
+    /// <param name="vol">The target volume.</param>
+    /// <param name="length">The duration of the Tween.</param>
+    /// <returns>A <see cref="AudioTween"/> instance representing the active tween.</returns>
+    public static AudioTween TweenVolume(this AudioSource a, float vol, float length)
+    {
+        AudioTween tween = new(a, vol, length);
+        Tweener.AddTween(tween);
+        return tween;
+    }
+
+    /// <summary>
+    /// Tween an <see cref="AudioSource"/>'s volume to 0 and then call <see cref="AudioSource.Stop"/>.
+    /// </summary>
+    /// <param name="a">The AudioSource to be acted upon.</param>
+    /// <param name="length">The duration of the Tween before it gets stopped.</param>
+    /// <returns>A <see cref="AudioTween"/> instance representing the active tween.</returns>
+    public static AudioTween TweenStopAudio(this AudioSource a, float length)
+    {
+        AudioTween tween = new(a, 0, length);
+        Tweener.AddTween(tween);
+        tween.RunOnFinish(a.Stop);
+        return tween;
+    }
+
+    /// <summary>
+    /// Tweens an <see cref="AudioSource"/>'s volume to 0, switches clips, plays, and then tweens its volume back to 1.
+    /// </summary>
+    /// <param name="a">The AudioSource to be acted upon.</param>
+    /// <param name="clip">The clip to switch to.</param>
+    /// <param name="lengthStop">The duration of the first Tween, before the AudioSource gets stopped.</param>
+    /// <param name="lengthStart">The duration of the second Tween, before the AudioSource's volume hits 1.</param>
+    /// <returns>A <see cref="AudioTween"/> tuple representing the first tween and the second tween, respectively (and respectfully ).</returns>
+    public static (AudioTween, AudioTween) TweenSwitchClips(this AudioSource a, AudioClip clip, float lengthStop, float lengthStart)
+    {
+        AudioTween tween = new(a, 0, lengthStop);
+        Tweener.AddTween(tween);
+        tween.RunOnFinish(() => a.clip = clip);
+
+        AudioTween tween2 = new(a, 1, lengthStart);
+        tween.RunOnFinish(() => Tweener.AddTween(tween2));
+
+        return (tween, tween2);
+    }
+
+    /// <summary>
+    /// Smoothly twens between a Transform <paramref name="t"/>'s current rotation and the target rotation in world space.
+    /// </summary>
+    /// <param name="t">The transform to be acted upon.</param>
+    /// <param name="targetRot">The rotation for the Transform to have at the end of the Tween.</param>
+    /// <param name="length">The duration of the Tween in seconds.</param>
+    /// <returns>A <see cref="RotationTween"/> representing the current tween.</returns>
+    public static RotationTween TweenRotation(this Transform t, Quaternion targetRot, float length)
+    {
+        RotationTween tween = new(t, targetRot, length, false);
+        Tweener.AddTween(tween);
+        return tween;
+    }
+
+    /// <summary>
+    /// Smoothly twens between a Transform <paramref name="t"/>'s current rotation and the target rotation in local space.
+    /// </summary>
+    /// <param name="t">The transform to be acted upon.</param>
+    /// <param name="targetRot">The local rotation for the Transform to have at the end of the Tween.</param>
+    /// <param name="length">The duration of the Tween in seconds.</param>
+    /// <returns>A <see cref="RotationTween"/> representing the current tween.</returns>
+    public static RotationTween TweenLocalRotation(this Transform t, Quaternion targetRot, float length)
+    {
+        RotationTween tween = new(t, targetRot, length, true);
+        Tweener.AddTween(tween);
+        return tween;
+    }
 }
