@@ -9,7 +9,7 @@ namespace Jevil.Tweening;
 
 /// <summary>
 /// The class that controls Tweens. 
-/// <para>Tweens are initiated via extenison methods. There doesn't seem to be anything for external use in this class.</para>
+/// <para>Tweens are initiated via extenison methods. The only thing that may be of interest is <see cref="CancelTweensOn(UnityEngine.Object)"/>.</para>
 /// </summary>
 public static class Tweener
 {
@@ -79,5 +79,23 @@ public static class Tweener
 #endif
 
         tweens.Remove(tween);
+    }
+
+    /// <summary>
+    /// Cancels all Tweens that are acting upon the Object <paramref name="cancelWith"/>.
+    /// </summary>
+    /// <param name="cancelWith">The object that Tweens cancel with. Can be a <see cref="Component"/> (like <see cref="AudioSource"/>), <see cref="GameObject"/>, or <see cref="Transform"/>. Likely a Transform.</param>
+    /// <returns>The number of Tweenbs that were cancelled.</returns>
+    public static int CancelTweensOn(UnityEngine.Object cancelWith)
+    {
+        TweenBase[] tweensToCancel = tweens.Where(tween => tween.CancelWith == cancelWith).ToArray();
+#if DEBUG
+        JeviLib.Log("Cancelling " + tweensToCancel.Length + " Tweens that act on the Unity object " + cancelWith.name);
+#endif
+        foreach (TweenBase tween in tweensToCancel)
+        {
+            RemoveTween(tween);
+        }
+        return tweensToCancel.Length;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -91,5 +92,31 @@ public static class TweenTweenExtensions
     {
         if (tween.Active) Tweener.RemoveTween(tween);
         return tween;
+    }
+
+    /// <summary>
+    /// Makes sure that this <paramref name="tween"/> is the only Tween acting on its Object.
+    /// <para>Useful to make sure there are no conflicts and this Tween will go through no matter what.</para>
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="tween"></param>
+    /// <returns></returns>
+    public static T Unique<T>(this T tween) where T : TweenBase
+    {
+        TweenBase[] competitors = Tweener.tweens.Where(t => t.CancelWith == tween.CancelWith && t != tween).ToArray();
+        foreach (TweenBase twn in competitors) Tweener.RemoveTween(twn);
+        return tween;
+    }
+
+    /// <summary>
+    /// An IEnumerator that waits for <paramref name="tween"/> to end. Uses <c>yield return null;</c> so if you want to resume in Fixed/LateUpdate, you'll need to <see langword="yield return"/> a <c>WaitFor[...]</c> afterwards for them.
+    /// <para>Use this as <c>yield return tweenName.WaitForEnd();</c> and your coroutine will yield until the tween finishes.</para>
+    /// </summary>
+    /// <typeparam name="T">A tween</typeparam>
+    /// <param name="tween">A tween (no shit really?)</param>
+    /// <returns>An IEnumerator that waits for <paramref name="tween"/> to end.</returns>
+    public static IEnumerator WaitForEnd<T>(this T tween) where T : TweenBase
+    {
+        while (tween.Active) yield return null;
     }
 }
