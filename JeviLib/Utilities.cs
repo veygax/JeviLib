@@ -277,7 +277,7 @@ public static class Utilities
     }
 
     /// <summary>
-    /// Returns a user-friendly name from the name of a member. Only works with camelCase.
+    /// Returns a user-friendly name from the name of a member. Only works with camelCase. WhateverCaseYouCallThis might work too. But not THIS_CASE or this_case.
     /// </summary>
     /// <param name="name">Member name, like "modToggleEnable"</param>
     /// <returns>Friendly name, like "Mod Enable Toggle"</returns>

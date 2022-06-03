@@ -48,7 +48,7 @@ internal static class PrefsInternal
 #endif
 
             var fieldType = field.FieldType;
-            var readableName = GenerateMenuName(field.Name);
+            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
             if (fieldType == typeof(string))
             {
                 var entry = SetEntry(mpCat, field, out string toSet, ep.desc);
@@ -68,10 +68,10 @@ internal static class PrefsInternal
             else if (fieldType.IsEnum)
             {
 #if DEBUG
-                if (!string.IsNullOrEmpty(ep.desc)) JeviLib.Warn($"Descriptions are not allowed for enum preferences - the description '{ep.desc}' on {type.Namespace}.{type.Name}.{field.Name} will not be put in ChaosConfig.cfg");
+                if (!string.IsNullOrEmpty(ep.desc)) JeviLib.Warn($"Descriptions are not allowed for enum preferences - the description '{ep.desc}' on {type.Namespace}.{type.Name}.{field.Name} will not be put in MelonPreferences.cfg");
 #endif
                 Enum dv = (Enum)field.GetValue(null);
-                var entry = mpCat.CreateEntry<string>(field.Name, dv.ToString(), description: $"Options: {string.Join(", ", Enum.GetNames(type))}");
+                var entry = mpCat.CreateEntry<string>(field.Name, dv.ToString(), description: $"Options: {string.Join(", ", Enum.GetNames(fieldType))}");
                 Enum toSet = dv; // if the two are different
                 try
                 {
@@ -112,7 +112,7 @@ internal static class PrefsInternal
             JeviLib.Log($"Found effect range preference on {type.Name}.{field.Name}");
 #endif
 
-            var readableName = GenerateMenuName(field.Name);
+            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
             var defaultValue = field.GetValue(null);
             if (field.FieldType == typeof(int))
             {
@@ -150,29 +150,5 @@ internal static class PrefsInternal
         toSet = defaultValue.Equals(entryValue) ? entryValue : entryValue; // if the two are different
         field.SetValue(null, defaultValue);
         return entry;
-    }
-
-    private static string GenerateMenuName(string memberName)
-    {
-
-        StringBuilder builder = new(memberName.Length);
-        builder.Append(char.ToUpper(memberName[0]));
-
-        for (int i = 1; i < memberName.Length; i++)
-        {
-            // use char's cause theyre on the stack not heap, and i want to avoid allocating shit 
-            char character = memberName[i];
-
-            if (char.IsUpper(character))
-            {
-                builder.Append(' ');
-                builder.Append(char.ToUpper(character));
-            }
-            else builder.Append(character);
-        }
-#if DEBUG
-        JeviLib.Log("Converted member name from " + memberName + " to " + builder.ToString());
-#endif
-        return builder.ToString();
     }
 }
