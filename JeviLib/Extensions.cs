@@ -99,16 +99,20 @@ public static class Extensions
     /// <summary>
     /// Smoothly interpolates between two values, clamping <paramref name="time"/> between 0 and 1.
     /// </summary>
-    /// <param name="tuple"></param>
-    /// <param name="time">The position in time you want to get</param>
-    /// <returns>A cosine-smoothed interpolation between Item1 and Item2.</returns>
-    public static float Interpolate(this (float, float) tuple, float time)
+    /// <param name="tuple">Tuple's Item1 will be the start value, Item2 will be the end value.</param>
+    /// <param name="time">The position in time you want to get.</param>
+    /// <param name="ease">Whether or not to ease in and out. Defaults to <see langword="true"/>.</param>
+    /// <returns>A cosine-smoothed interpolation between Item1 and Item2, unless <paramref name="ease"/> is false.</returns>
+    public static float Interpolate(this (float, float) tuple, float time, bool ease = true)
     {
-
         float clampTime = Mathf.Clamp(time, 0, 1);
-        float correctedCos = -(Mathf.Cos(clampTime * Const.FPI) - 1) / 2;
         float diff = tuple.Item2 - tuple.Item1;
-        return tuple.Item1 + (diff * correctedCos);
+        if (ease)
+        {
+            float correctedCos = -(Mathf.Cos(clampTime * Const.FPI) - 1) / 2;
+            return tuple.Item1 + (diff * correctedCos);
+        }
+        else return tuple.Item1 + (diff * clampTime);
     }
 
     /// <summary>
@@ -423,5 +427,43 @@ public static class Extensions
 #endif
             yield return t.GetChild(i);
         }
+    }
+
+    /// <summary>
+    /// A quicker way to use <see cref="Enumerable.Zip{TFirst, TSecond, TResult}(IEnumerable{TFirst}, IEnumerable{TSecond}, Func{TFirst, TSecond, TResult})"/>.
+    /// <para>Throws if counts are not the same if <paramref name="throwOnUnequalCounts"/> is true (which it defaults to).</para>
+    /// </summary>
+    /// <typeparam name="T1">The first element in the tuple.</typeparam>
+    /// <typeparam name="T2">The second element in the tuple.</typeparam>
+    /// <param name="sequence">The sequence providing the first elements.</param>
+    /// <param name="otherSeq">The sequence providing the second elements.</param>
+    /// <param name="throwOnUnequalCounts">Whether to throw if <see cref="Enumerable.Count{TSource}(IEnumerable{TSource})"/> is unequal.</param>
+    /// <returns>A tuple enumerable with Item1 coming from <paramref name="sequence"/> and Item2 coming from <paramref name="otherSeq"/>.</returns>
+    /// <exception cref="IndexOutOfRangeException"><see cref="Enumerable.Count{TSource}(IEnumerable{TSource})"/> is not the same for both.</exception>
+    public static IEnumerable<(T1, T2)> Zip<T1,T2>(this IEnumerable<T1> sequence, IEnumerable<T2> otherSeq, bool throwOnUnequalCounts = true)
+    {
+        if (throwOnUnequalCounts && sequence.Count() != otherSeq.Count()) throw new IndexOutOfRangeException("Zipped enumerables must have the same length otherwise the operation will go out of bounds!");
+        return sequence.Zip(otherSeq, (x, y) => (x, y));
+    }
+
+    /// <summary>
+    /// An array version of <see cref="Zip{T1, T2}(IEnumerable{T1}, IEnumerable{T2}, bool)"/>, because something something performance I think. Uses a manual copy via a for-loop.
+    /// <para>Throws if lengths are not the same.</para>
+    /// </summary>
+    /// <typeparam name="T1">The first element in the tuple.</typeparam>
+    /// <typeparam name="T2">The second element in the tuple.</typeparam>
+    /// <param name="arr"></param>
+    /// <param name="otherArr"></param>
+    /// <returns>A tuple array with the tuple's Item1 coming from <paramref name="arr"/> and Item2 coming from <paramref name="otherArr"/>.</returns>
+    public static (T1, T2)[] Zip<T1, T2>(this T1[] arr, T2[] otherArr)
+    {
+        if (arr.Length != otherArr.Length) throw new IndexOutOfRangeException("Zipped arrays must have the same length otherwise the operation will go out of bounds!");
+        (T1, T2)[] res = new (T1, T2)[arr.Length];
+        
+        for (int i = 0; i < arr.Length; i++)
+        {
+            res[i] = (arr[i], otherArr[i]);
+        }
+        return res;
     }
 }

@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Jevil.Tweening;
 
 /// <summary>
-/// Positional tween returned by <see cref="TweenExtensions.TweenRotation(Transform, Quaternion, float)"/>
+/// Positional tween returned by <see cref="TweenExtensions.TweenRotation(Transform, Quaternion, float)"/>.
 /// </summary>
 public sealed class RotationTween : Tween<Quaternion>
 {
@@ -32,9 +32,9 @@ public sealed class RotationTween : Tween<Quaternion>
     /// <inheritdoc/>
     protected override void Update(float completion)
     {
-        float ensmoothened = floatfloat.Interpolate(completion);
+        float lerpComplete = IsEasing ? floatfloat.Interpolate(completion) : completion;
         // use quaterntion.lerp because aint no fuckin way im gonna dare to touch the bullfuckery that is quaternions
-        Quaternion current = Quaternion.Lerp(startValue, endValue, ensmoothened);
+        Quaternion current = Quaternion.Lerp(startValue, endValue, lerpComplete);
         setter(current);
     }
 }

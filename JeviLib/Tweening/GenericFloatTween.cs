@@ -13,7 +13,7 @@ namespace Jevil.Tweening;
 public sealed class GenericFloatTween : Tween<float>
 {
     /// <summary>
-    /// Create a new <see cref="GenericFloatTween"/>. This does not activate the tween, so you will need to call <see cref="Play"/>
+    /// Create a new <see cref="GenericFloatTween"/>. This does not activate the tween, so you will need to call <see cref="Play"/>.
     /// </summary>
     /// <param name="getter"></param>
     /// <param name="setter"></param>
@@ -52,7 +52,7 @@ public sealed class GenericFloatTween : Tween<float>
     /// <param name="completion">How far along the tween is.</param>
     protected override void Update(float completion)
     {
-        float value = (startValue, endValue).Interpolate(completion);
+        float value = (startValue, endValue).Interpolate(completion, IsEasing);
         setter(value);
     }
 }

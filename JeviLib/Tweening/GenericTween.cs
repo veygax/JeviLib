@@ -11,7 +11,7 @@ namespace Jevil.Tweening;
 /// <para>You will need to extend this class and override <see cref="TweenBase.Update(float)"/></para>
 /// </summary>
 /// <typeparam name="T">The type to get and set, not the type to act upon.</typeparam>
-public class GenericTween<T> : Tween<T>
+public abstract class GenericTween<T> : Tween<T>
 {
 
     /// <summary>
@@ -23,11 +23,26 @@ public class GenericTween<T> : Tween<T>
     /// <param name="length">How long you want the tween to last</param>
     /// <param name="cancelWith">What the Tween should cancel with. Defaults to <see cref="Instances.NeverCancel"/></param>
 #pragma warning disable UNT0007 // Null coalescing on Unity objects
-    protected GenericTween(Func<T> getter, Action<T> setter, T endingValue, float length, UnityEngine.Object cancelWith = null) : base(endingValue, length, cancelWith ?? Instances.NeverCancel, () => getter(), (val) => setter(val))
+    protected GenericTween(Func<T> getter,
+                           Action<T> setter,
+                           T endingValue,
+                           float length,
+                           UnityEngine.Object cancelWith = null) 
+        : base(endingValue,
+               length,
+               cancelWith ?? Instances.NeverCancel,
+               () => getter(),
+               (val) => setter(val))
 #pragma warning restore UNT0007 // Null coalescing on Unity objects
     {
 
     }
+
+    /// <summary>
+    /// Update the Tween according to its progress.
+    /// </summary>
+    /// <param name="completion">A value from 0 to 1 representing how complete the Tween is.</param>
+    protected abstract override void Update(float completion);
 
     /// <summary>
     /// Start the created tween.

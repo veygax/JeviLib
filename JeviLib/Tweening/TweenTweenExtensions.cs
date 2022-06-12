@@ -119,4 +119,29 @@ public static class TweenTweenExtensions
     {
         while (tween.Active) yield return null;
     }
+
+    /// <summary>
+    /// Makes the <paramref name="tween"/> not ease in and out.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="tween"></param>
+    /// <returns></returns>
+    public static T DontEase<T>(this T tween) where T : TweenBase
+    {
+        tween.IsEasing = false;
+        return tween;
+    }
+
+    /// <summary>
+    /// Makes the <paramref name="tween"/> ease in and out. 
+    /// <para>This is only necessary if the Tween has had <see cref="DontEase{T}(T)"/> already ran on it before, because all Tweens default to easing in and out.</para>
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="tween"></param>
+    /// <returns></returns>
+    public static T DoEase<T>(this T tween) where T : TweenBase
+    {
+        tween.IsEasing = false;
+        return tween;
+    }
 }

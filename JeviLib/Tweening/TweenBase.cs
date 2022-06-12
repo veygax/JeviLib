@@ -54,6 +54,11 @@ public class TweenBase
     /// </summary>
     public bool IsCancelled { get; internal set; }
 
+    /// <summary>
+    /// Displays whether the tween will ease in and out of positions.
+    /// </summary>
+    public bool IsEasing { get; internal set; }
+
 
     internal float timeSinceStart;
     internal float startTime;

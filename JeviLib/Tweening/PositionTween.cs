@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Jevil.Tweening;
 
 /// <summary>
-/// Positional tween returned by <see cref="TweenExtensions.TweenPosition(Transform, Vector3, float)"/>
+/// Positional tween returned by <see cref="TweenExtensions.TweenPosition(Transform, Vector3, float)"/>.
 /// </summary>
 public sealed class PositionTween : Tween<Vector3>
 {
@@ -16,9 +16,8 @@ public sealed class PositionTween : Tween<Vector3>
     /// Whether or not a PositionTween is acting in local space or world space.
     /// </summary>
     public bool IsLocal { get; internal set; }
-    private (float start, float end) xComp;
-    private (float start, float end) yComp;
-    private (float start, float end) zComp;
+
+    private static (float, float) floatfloat = (0, 1);
 
     internal PositionTween(Transform transform, Vector3 target, float length, bool isLocal)
         : base(target,
@@ -28,18 +27,13 @@ public sealed class PositionTween : Tween<Vector3>
                isLocal ? (pos) => transform.localPosition = pos : (pos) => transform.position = pos) // setter
     {
         this.IsLocal = isLocal;
-        Vector3 start = startValue;
-        xComp = (start.x, target.x);
-        yComp = (start.y, target.y);
-        zComp = (start.z, target.z);
     }
 
     /// <inheritdoc/>
     protected override void Update(float completion)
     {
-        float x = xComp.Interpolate(completion);
-        float y = yComp.Interpolate(completion);
-        float z = zComp.Interpolate(completion);
-        setter(new(x, y, z));
+        float lerpComplete = IsEasing ? floatfloat.Interpolate(completion) : completion;
+        Vector3 newVal = Vector3.Lerp(startValue, endValue, lerpComplete);
+        setter(newVal);
     }
 }
