@@ -48,8 +48,8 @@ public sealed class Preferences : Attribute
     /// <para>Debug builds have a check for instanced fields and will warn (but not <c>throw</c>) if it finds one. Release builds will ignore them.</para>
     /// </summary>
     /// <typeparam name="T">The class containing the preferences. It must be decorated with the Preferences attribute.</typeparam>
-    /// <returns>A <see cref="PrefEntries"/> instance</returns>
-    /// <exception cref="InvalidOperationException">The specified type is not decorated with Preferences</exception>
+    /// <returns>A <see cref="PrefEntries"/> instance.</returns>
+    /// <exception cref="InvalidOperationException">The specified type is not decorated with Preferences.</exception>
     public static PrefEntries Register<T>()
     {
         Type type = typeof(T);

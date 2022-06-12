@@ -12,10 +12,6 @@ namespace Jevil.Prefs;
 
 internal static class PrefsInternal
 {
-    //static readonly MelonPreferences_Category mpCategory = MelonPreferences.CreateCategory(nameof(Extraes));
-    //static readonly MenuCategory element = MenuManager.CreateCategory(nameof(Extraes), Color.white);
-    //static readonly MenuCategory prefsElement = element.CreateSubCategory("Preferences", Color.gray);
-
     public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor);
 
     public static PrefEntries RegisterPreferences(Type type, string categoryName, bool prefSubcategory, Color categoryColor)
@@ -75,11 +71,11 @@ internal static class PrefsInternal
                 Enum toSet = dv; // if the two are different
                 try
                 {
-                    toSet = (Enum)Enum.Parse(type, entry.Value);
+                    toSet = (Enum)Enum.Parse(fieldType, entry.Value);
                 }
                 catch
                 {
-                    JeviLib.Warn($"Failed to parse '{entry.Value}' as a value in the enum {type.Name} for the effect {type.Name}'s preference {field.Name}");
+                    JeviLib.Warn($"Failed to parse '{entry.Value}' as a value in the enum {type.Name} for the class {type.Name}'s preference {field.Name}");
                     JeviLib.Warn("Replacing it with its default value of " + dv);
                     entry.Value = dv.ToString();
                 }
