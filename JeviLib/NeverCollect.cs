@@ -9,7 +9,7 @@ namespace Jevil;
 
 /// <summary>
 /// A self-referencing IL2CPP type. This has a check to make sure there is only one of itself ever in existence.
-/// <para>This is technically a memory leak. Don't think too hard about it, 'cause it's only leaking one MonoBehaviour's worth of RAM.</para>
+/// <para>This is technically a memory leak. Don't think too hard about it, because it's only leaking one MonoBehaviour's worth of RAM.</para>
 /// </summary>
 [MelonLoader.RegisterTypeInIl2Cpp]
 public class NeverCollect : MonoBehaviour
