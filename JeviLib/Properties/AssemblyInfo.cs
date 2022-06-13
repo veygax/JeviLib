@@ -3,20 +3,20 @@ using System.Reflection;
 using System.Resources;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle(Jevil.BuildInfo.Name)]
+[assembly: AssemblyTitle(Jevil.JevilBuildInfo.Name)]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany(Jevil.BuildInfo.Company)]
-[assembly: AssemblyProduct(Jevil.BuildInfo.Name)]
-[assembly: AssemblyCopyright("Created by " + Jevil.BuildInfo.Author)]
-[assembly: AssemblyTrademark(Jevil.BuildInfo.Company)]
+[assembly: AssemblyCompany(Jevil.JevilBuildInfo.Company)]
+[assembly: AssemblyProduct(Jevil.JevilBuildInfo.Name)]
+[assembly: AssemblyCopyright("Created by " + Jevil.JevilBuildInfo.Author)]
+[assembly: AssemblyTrademark(Jevil.JevilBuildInfo.Company)]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 //[assembly: Guid("")]
-[assembly: AssemblyVersion(Jevil.BuildInfo.Version)]
-[assembly: AssemblyFileVersion(Jevil.BuildInfo.Version)]
+[assembly: AssemblyVersion(Jevil.JevilBuildInfo.Version)]
+[assembly: AssemblyFileVersion(Jevil.JevilBuildInfo.Version)]
 [assembly: NeutralResourcesLanguage("en")]
-[assembly: MelonInfo(typeof(Jevil.JeviLib), Jevil.BuildInfo.Name, Jevil.BuildInfo.Version, Jevil.BuildInfo.Author, Jevil.BuildInfo.DownloadLink)]
+[assembly: MelonInfo(typeof(Jevil.JeviLib), Jevil.JevilBuildInfo.Name, Jevil.JevilBuildInfo.Version, Jevil.JevilBuildInfo.Author, Jevil.JevilBuildInfo.DownloadLink)]
 [assembly: MelonPriority(-20925)] // rb rd
 
 // Create and Setup a MelonModGame to mark a Mod as Universal or Compatible with specific Games.

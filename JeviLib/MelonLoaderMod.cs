@@ -9,13 +9,13 @@ using Jevil.Tweening;
 
 namespace Jevil;
 
-internal static class BuildInfo
+internal static class JevilBuildInfo
 {
     public const string Name = "JeviLib"; // Name of the Mod.  (MUST BE SET)
     public const string Author = "extraes"; // Author of the Mod.  (Set as null if none)
     public const string Company = null; // Company that made the Mod.  (Set as null if none)
-    public const string Version = "1.1.1"; // Version of the Mod.  (MUST BE SET)
-    public const string DownloadLink = null; // Download Link for the Mod.  (Set as null if none)
+    public const string Version = "1.2.0"; // Version of the Mod.  (MUST BE SET)
+    public const string DownloadLink = "https://boneworks.thunderstore.io/package/extraes/JeviLib/"; // Download Link for the Mod.  (Set as null if none)
     public const bool Debug
 #if DEBUG
         = true;
@@ -58,7 +58,7 @@ public class JeviLib : MelonMod
         Spawning.Zombies.Init();
 
         sw.Stop();
-        LoggerInstance.Msg(System.ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{BuildInfo.Version}{(BuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
+        LoggerInstance.Msg(System.ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
