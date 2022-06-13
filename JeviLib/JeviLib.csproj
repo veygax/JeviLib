@@ -115,6 +115,8 @@
     <Compile Include="Tweening\TweenTweenExtensions.cs" />
     <Compile Include="Tweening\PositionTween.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="Waiting\WaitDuring.cs" />
+    <Compile Include="Waiting\WaitFor.cs" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\..\..\..\..\..\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
