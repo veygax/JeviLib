@@ -23,8 +23,7 @@ public static class Utilities
         IsSevenSeas();
         IsSevenSeas();
         IsSevenSeas();
-        // make sure the runtime inlines it 
-        
+        // make sure the runtime inlines it (i think)
     }
 
     /// <summary>
