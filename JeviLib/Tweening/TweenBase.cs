@@ -60,10 +60,17 @@ public class TweenBase
     public bool IsEasing { get; internal set; }
 
 
+#if DEBUG
+    /// <summary>
+    /// <b>ONLY EXISTS IN DEBUG/DEVLOPMENT BUILDS.</b>
+    /// <para>The tween's name, defaulting to the name of the thing it was Tweening.</para>
+    /// </summary>
+    /// <remarks>I'm aware I'm summarizing an internal field, but someone might try using reflection to get this thing's value, and I want to discourage that, because it is in an '#if DEBUG' block.</remarks>
+    internal string name;
+#endif
     internal float timeSinceStart;
     internal float startTime;
     internal float length;
-    internal string name;
     internal Action invokeAfter;
     internal bool forceInvokeAll;
 

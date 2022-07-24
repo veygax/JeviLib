@@ -35,7 +35,7 @@ public static class TweenTweenExtensions
     }
 
     /// <summary>
-    /// Makes actions invoke using <see cref="Extensions.InvokeSafeParallel(Action)"/>. This doesn't block the main thread, but it strains the CPU on other threads.
+    /// Makes actions invoke using <see cref="ActionExtensions.InvokeSafeSync(Action)"/>, blocking the main thread but allowing you to call Unity methods and properties.
     /// <para><b>!!!</b> This does <b>NOT</b> invoke all queued Actions. <b>!!!</b></para>
     /// </summary>
     /// <typeparam name="T">A type, where T extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
