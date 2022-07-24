@@ -31,9 +31,9 @@ public class WaitFor : IEnumerator
     }
 
     /// <summary>
-    /// stub => https://cdn.discordapp.com/attachments/587792632986730507/985659335088697454/trim.5C5AD44D-3A16-467D-8B16-2DBB397C205D.mov
+    /// throws, https://cdn.discordapp.com/attachments/587792632986730507/985659335088697454/trim.5C5AD44D-3A16-467D-8B16-2DBB397C205D.mov
     /// </summary>
-    public void Reset() { }
+    public void Reset() => throw new NotImplementedException("Cannot reset something intended to be a coroutine yield instruction.");
 
     /// <summary>
     /// Create a new instance of <see cref="WaitFor"/>

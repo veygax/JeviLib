@@ -9,25 +9,24 @@ using UnityEngine;
 namespace Jevil.Waiting;
 
 /// <summary>
-/// Replacement for <see cref="WaitWhile"/>, because that was tragically stripped during the IL2CPP battle (build) of 2019-2020.
-/// <para><i>Original docs: Suspends the coroutine execution until the supplied delegate evaluates to false.</i></para>
+/// Waits until the scene index changes on scene intialization.
 /// </summary>
-public class WaitDuring : IEnumerator
+public class WaitForSceneInit : IEnumerator
 {
-    readonly Func<bool> waiter;
-
     /// <summary>
     /// literally <see langword="null"/>
     /// </summary>
     public object Current => null;
+    internal static int currSceneIdx;
+    readonly int sceneIdx;
 
     /// <summary>
-    /// yeah basically
+    /// Whether the current scene index is teh same as the scene index this <see cref="WaitForSceneInit"/> started with.
     /// </summary>
     /// <returns>The value of <c>waiter()</c></returns>
     public bool MoveNext()
     {
-        return waiter();
+        return sceneIdx == currSceneIdx;
     }
 
     /// <summary>
@@ -36,11 +35,10 @@ public class WaitDuring : IEnumerator
     public void Reset() { }
 
     /// <summary>
-    /// Create a new instance of <see cref="WaitDuring"/>
+    /// Create a new instance of <see cref="WaitForSceneInit"/>
     /// </summary>
-    /// <param name="waiter">The method (or lambda) that will be ran to determine if your coroutine should resume execution.</param>
-    public WaitDuring(Func<bool> waiter)
+    public WaitForSceneInit()
     {
-        this.waiter = waiter;
+        sceneIdx = currSceneIdx;
     }
 }
