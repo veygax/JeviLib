@@ -1,7 +1,10 @@
-﻿using System;
+﻿using ModThatIsNotMod;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -282,7 +285,7 @@ public static class Extensions
     /// <returns>The list of lists, with each inner list having a max Count of <paramref name="maxPerList"/></returns>
     public static IEnumerable<IEnumerable<T>> SplitList<T>(this IEnumerable<T> source, int maxPerList)
     {
-        if (source == null) throw new ArgumentNullException("source");
+        if (source == null) throw new ArgumentNullException(nameof(source));
         IList<T> enumerable = source as IList<T> ?? source.ToList();
         if (!enumerable.Any())
         {
@@ -320,82 +323,6 @@ public static class Extensions
         Vector3 pos = Utilities.DebyteV3(serializedPosRot);
         Quaternion rot = Quaternion.Euler(Utilities.DebyteV3(serializedPosRot, Const.SizeV3));
         t.SetPositionAndRotation(pos, rot);
-    }
-
-    /// <summary>
-    /// Uses <see cref="Delegate.DynamicInvoke(object[])"/> in a <see langword="try"/>-<see langword="catch"/> to call all invokers. If the results of one invoker depend on another, use <see cref="InvokeSafeSync(Action)"/>.
-    /// <para>DynamicInvoke is slow, hence the use of <see cref="Parallel"/>, however due to this, it will not block the main thread or wait for the results of one invocation to execute another.</para>
-    /// </summary>
-    /// <param name="a">An action. Can be null or have no registered invokers.</param>
-    public static void InvokeSafeParallel(this Action a)
-    {
-        if (a == null) return;
-        Delegate[] invocations = a.GetInvocationList();
-        if (invocations.Length == 0) return;
-
-        Parallel.For(0, invocations.Length, i =>
-        {
-            try
-            {
-                invocations[i].DynamicInvoke();
-            }
-            catch (Exception e)
-            {
-                JeviLib.Error("Exception while parallel safe-invoking on iteration " + i + " of " + invocations.Length + "!");
-                JeviLib.Error(e);
-            }
-        });
-    }
-
-    /// <summary>
-    /// Uses <see cref="Delegate.DynamicInvoke(object[])"/> to call all invokers. If the results of one invoker depend on another, use <see cref="InvokeSafeSync(Action)"/>.
-    /// </summary>
-    /// <param name="a">An action. Can be null or have no registered invokers.</param>
-    /// <param name="param">The argument to be passed to the invokers.</param>
-    public static void InvokeSafeParallel<T>(this Action<T> a, T param)
-    {
-        if (a == null) return;
-        Delegate[] invocations = a.GetInvocationList();
-        if (invocations.Length == 0) return;
-
-        Parallel.For(0, invocations.Length, i =>
-        {
-            try
-            {
-                invocations[i].DynamicInvoke(new object[] { param });
-            }
-            catch (Exception e)
-            {
-                JeviLib.Error("Errored while parallel safe-invoking!");
-                JeviLib.Error(e);
-            }
-        });
-    }
-
-    /// <summary>
-    /// Uses <see cref="Delegate.DynamicInvoke(object[])"/> to call all invokers.
-    /// <para>DynamicInvoke is slow, so it's recommended to use <see cref="InvokeSafeParallel(Action)"/> to avoid blocking the thread. Or use Task.Run I guess?</para>
-    /// </summary>
-    /// <param name="a">An action. Can be null or have no registered invokers.</param>
-    public static void InvokeSafeSync(this Action a)
-    {
-        if (a == null) return;
-        Delegate[] invocations = a.GetInvocationList();
-        if (invocations.Length == 0) return;
-
-        for (int i = 0; i < invocations.Length; i++)
-        {
-            try
-            {
-                invocations[i].DynamicInvoke();
-            }
-            catch (Exception e)
-            {
-                JeviLib.Error("Errored while safe-invoking!");
-                JeviLib.Error(e);
-            }
-
-        }
     }
 
     /// <summary>
@@ -447,7 +374,7 @@ public static class Extensions
     }
 
     /// <summary>
-    /// An array version of <see cref="Zip{T1, T2}(IEnumerable{T1}, IEnumerable{T2}, bool)"/>, because something something performance I think. Uses a manual copy via a for-loop.
+    /// An array version of <see cref="Zip{T1, T2}(IEnumerable{T1}, IEnumerable{T2}, bool)"/>, using .Length instead of .Count(). Uses a manual copy via a for-loop.
     /// <para>Throws if lengths are not the same.</para>
     /// </summary>
     /// <typeparam name="T1">The first element in the tuple.</typeparam>
@@ -465,5 +392,122 @@ public static class Extensions
             res[i] = (arr[i], otherArr[i]);
         }
         return res;
+    }
+
+    /// <summary>
+    /// Filters out <see langword="null"/>s from the given <paramref name="sequence"/> using the != operator, so it <i>should</i> also filter out garbage collected <see cref="UnityEngine.Object"/>s.
+    /// </summary>
+    /// <typeparam name="T">Any type.</typeparam>
+    /// <param name="sequence"></param>
+    /// <returns></returns>
+    public static IEnumerable<T> NoNull<T>(IEnumerable<T> sequence)
+    {
+        return sequence.Where(o => o != null);
+    }
+
+    /// <summary>
+    /// Splits a collection according to how many processors are in the system, assuming the system has hyperthreading. (Via <see cref="SystemInfo.processorCount"/>)
+    /// <para>Not all elements of the resulting IEnumerable are guaranteed to have the same length. The last item may be smaller than the rest.</para>
+    /// </summary>
+    /// <typeparam name="T">Any.</typeparam>
+    /// <param name="sequence">The sequence to be split.</param>
+    /// <param name="onePerCore">Divides processorCount by 2 so there's one per core instead of one per thread.</param>
+    /// <returns></returns>
+    public static IEnumerable<IEnumerable<T>> SplitByProcessors<T>(this IEnumerable<T> sequence, bool onePerCore = false)
+    {
+        int splitCount = SystemInfo.processorCount;
+        if (onePerCore) splitCount /= 2;
+        int maxCount = Mathf.CeilToInt(sequence.Count() / (float)splitCount);
+
+        return sequence.SplitList(maxCount);
+    }
+
+    /// <summary>
+    /// Returns the first element from <paramref name="sequence"/> whose <paramref name="selector"/> result matches the result of <see cref="Enumerable.Min(IEnumerable{int})"/>.
+    /// </summary>
+    /// <typeparam name="T">Any. This Is A Threat.</typeparam>
+    /// <param name="sequence">The sequence to be .Min'd and .First'd</param>
+    /// <param name="selector">The Func to pass into <see cref="Enumerable.Min{TSource}(IEnumerable{TSource}, Func{TSource, int})"/> and to use to compare against the result in <see cref="Enumerable.First{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>.</param>
+    /// <returns>The first element in the sequence that matches the result of <see cref="Enumerable.Min{TSource}(IEnumerable{TSource}, Func{TSource, int})"/></returns>
+    public static T FirstMin<T>(this IEnumerable<T> sequence, Func<T, int> selector)
+    {
+        int min = sequence.Min(selector);
+        return sequence.First(t => selector(t) == min);
+    }
+
+    /// <summary>
+    /// If <paramref name="paramTypes"/> is null, attempt to resolve conflicts between methods by filtering the results of <see cref="Type.GetMethods(BindingFlags)"/>, returning a method with the smallest number of parameters.
+    /// <para>Otherwise, <see cref="Type.GetMethod(string, BindingFlags, Binder, CallingConventions, Type[], ParameterModifier[])"/> with the BindingFlags parameter set to <see cref="Const.AllBindingFlags"/>.</para>
+    /// </summary>
+    /// <param name="type">The type with a potentially overridden method named <paramref name="methodName"/>.</param>
+    /// <param name="methodName">The name of the method. Can be overridden.</param>
+    /// <param name="paramTypes">In case you want more specificity, you can specify an array of types correspoding to the parameter types.</param>
+    /// <returns>An instance of <see cref="MethodInfo"/> if there's at least one method matching the criteria, or <see langword="null"/>.</returns>
+    public static MethodInfo GetMethodEasy(this Type type, string methodName, Type[] paramTypes = null)
+    {
+        if (paramTypes == null)
+        {
+            MethodInfo[] minfs = type.GetMethods(Const.AllBindingFlags).Where(m => m.Name == methodName).ToArray();
+
+            if (minfs.Length == 0)
+                return null;        
+
+            return minfs.FirstMin(m => m.GetParameters().Length);
+        }
+        else return type.GetMethod(methodName, Const.AllBindingFlags, null, CallingConventions.Any, paramTypes, null);
+    }
+
+    /// <summary>
+    /// Get all overrides for a given method name.
+    /// </summary>
+    /// <param name="type">The type with the method(s)</param>
+    /// <param name="methodName">The name of the method overridden</param>
+    /// <returns>All methods on the given type that have the given name.</returns>
+    public static MethodInfo[] GetMethods(this Type type, string methodName)
+    {
+        return (from MethodInfo method in type.GetMethods(Const.AllBindingFlags)
+                where method.Name == methodName
+                select method).ToArray();
+    }
+
+    /// <summary>
+    /// i didnt like the extra parentheses so heres an easier way to add items to a tuple list.
+    /// </summary>
+    /// <typeparam name="T1">Type of <paramref name="item1"/>.</typeparam>
+    /// <typeparam name="T2">Type of <paramref name="item2"/>.</typeparam>
+    /// <param name="list">The tuple list.</param>
+    /// <param name="item1">Tuple's first item.</param>
+    /// <param name="item2">Tuple's second item.</param>
+    public static void Add<T1, T2>(this List<(T1, T2)> list, T1 item1, T2 item2) => list.Add((item1, item2));
+
+    /// <summary>
+    /// Uses <see cref="MemberInfo.DeclaringType"/> and <see cref="Type.GetMethod(string, BindingFlags)"/> with <see cref="Const.AllBindingFlags"/> to get an instance of <see cref="MethodInfo"/>.
+    /// </summary>
+    /// <param name="mb">Any MethodBase declared by a Type.</param>
+    /// <returns>An instnace of <see cref="MethodInfo"/>, or <see langword="null"/> for whatever reason. Should always return a methodinfo tho.</returns>
+    public static MethodInfo ToInfo(this MethodBase mb)
+    {
+        Type type = mb.DeclaringType;
+        return type.GetMethod(mb.Name, Const.AllBindingFlags);
+    } 
+
+    /// <summary>
+    /// Waits for a <see cref="NotificationData"/> to disappear.
+    /// </summary>
+    /// <param name="notif">Any notification data</param>
+    /// <returns>A yield awaitable enumerator that waits for the notification to finish.</returns>
+    public static IEnumerator WaitForEnd(this NotificationData notif)
+    {
+        while (notif.timeRemaining > 0) yield return null;
+    }
+
+    /// <summary>
+    /// <b>I</b>s <b><see langword="N"/></b><see langword="ull"/> <b>O</b>r <b>C</b>ollected
+    /// </summary>
+    /// <param name="obj">Any Unity object.</param>
+    /// <returns></returns>
+    public static bool INOC(this UnityEngine.Object obj)
+    {
+        return obj is null || obj.WasCollected || obj == null;
     }
 }
