@@ -23,6 +23,10 @@ public static class Zombies
 
     internal static void Init()
     {
+        bool isAutoCaching = Instances<AIBrain>.TryAutoCache();
+#if DEBUG
+        JeviLib.Log($"{(isAutoCaching ? "Succeeded" : "Failed")} in autocaching {nameof(AIBrain)}'s");
+#endif
         byte[] bundleRaw = JeviLib.instance.Assembly.GetEmbeddedResource("Jevil.Resources.EnemyConfigs.bundle");
         AssetBundle bundle = AssetBundle.LoadFromMemory(bundleRaw);
 #if DEBUG
@@ -78,14 +82,44 @@ public static class Zombies
         BaseEnemyConfig conf = zombieConfigs[zt];
 
         GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject;
-        AIBrain braiiinnnsssss = spawned.GetComponentInChildren<AIBrain>();
+        AIBrain braiiinnnsssss = Instances<AIBrain>.GetInImmediateChildren(spawned);
         
         // do 2 of em because im not sure what the difference is lol
         braiiinnnsssss.SetBaseConfig(conf);
         conf.ApplyTo(braiiinnnsssss.behaviour);
 
         return spawned;
-    } 
+    }
+
+    /// <summary>
+    /// Spawn a zombie using the given one as a base, with the given health/recovery values. Any unset values will use the ones from <paramref name="baseType"/>.
+    /// </summary>
+    /// <param name="pos">The position to spawn the zombie at.</param>
+    /// <param name="rot">The rotation the zombie will spawn with.</param>
+    /// <param name="baseType">The <see cref="ZombieType"/> to use as a base. The thrower and speed values will be set off this.</param>
+    /// <param name="maxHp">The max HP that the zombies is going to have. I think this just means the HP it's going to have.</param>
+    /// <param name="maxLimbHp">The max HP that any given limb can have. I'm not sure how this scales between say, a foot vs the torso.</param>
+    /// <param name="stunRecovery">How recoverable it is from a stun? Shit idk what the fuck this is.</param>
+    /// <param name="maxStunSeconds">The max time, in seconds, the zombie can be stunned for. I'm guessing at least.</param>
+    /// <returns></returns>
+    public static GameObject Spawn(Vector3 pos, Quaternion rot, ZombieType baseType, float? maxHp = null, float? maxLimbHp = null, float? stunRecovery = null, float? maxStunSeconds = null)
+    {
+        BaseEnemyConfig _config = zombieConfigs[baseType];
+        BaseEnemyConfig clonefig = UnityEngine.Object.Instantiate(_config);
+        BaseEnemyConfig.HealthSettings hs = Utilities.CloneHealthSettings(_config.healthSettings);
+        hs.maxHitPoints = maxHp ?? clonefig.healthSettings.maxHitPoints;
+        hs.maxAppendageHp = maxLimbHp ?? hs.maxAppendageHp;
+        hs.stunRecovery = stunRecovery ?? hs.stunRecovery;
+        hs.maxStunSeconds = maxStunSeconds ?? hs.maxStunSeconds;
+        clonefig.healthSettings = hs;
+
+        GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject;
+        AIBrain brainiac = Instances<AIBrain>.GetInImmediateChildren(spawned);
+        
+        brainiac.SetBaseConfig(clonefig);
+        clonefig.ApplyTo(brainiac.behaviour);
+        return spawned;
+    }
 }
 /*
 - Assets/Export/EnemyConfigs/EarlyExit_Slow_Throw_Tank.asset
