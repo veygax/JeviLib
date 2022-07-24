@@ -1,4 +1,6 @@
-﻿namespace Jevil;
+﻿using System.Reflection;
+
+namespace Jevil;
 
 /// <summary>
 /// Constant values used in multiple places throughout this library.
@@ -16,4 +18,13 @@ public static class Const
     /// <para>Used extensively in <see cref="Tweening"/> to make interpolation smooth.</para>
     /// </summary>
     public const float FPI = (float)System.Math.PI;
+    /// <summary>
+    /// All relevant binding flags (Public, NonPublic, Instance, Static)
+    /// </summary>
+    public const BindingFlags AllBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    /// <summary>
+    /// The name of the GameObject <see cref="Instances.Player_RigManager"/> is on.
+    /// <para>Useful with <see cref="Extensions.InHierarchyOf(UnityEngine.Transform, string)"/></para>
+    /// </summary>
+    public const string RigManagerName = "[RigManager (Default Brett)]";
 }

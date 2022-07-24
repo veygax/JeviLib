@@ -1,8 +1,10 @@
 ﻿using StressLevelZero.Rig;
 using StressLevelZero.VRMK;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -21,15 +23,15 @@ public static class Instances
     /// </summary>
     public static BodyVitals Player_BodyVitals { get; internal set; }
     /// <summary>
-    /// A cached reference to <see cref="BodyVitals"/>
+    /// A cached reference to <see cref="RigManager"/>
     /// </summary>
     public static RigManager Player_RigManager { get; internal set; }
     /// <summary>
-    /// A cached reference to <see cref="BodyVitals"/>
+    /// A cached reference to <see cref="global::Player_Health"/>
     /// </summary>
     public static Player_Health Player_Health { get; internal set; }
     /// <summary>
-    /// A cached reference to <see cref="BodyVitals"/>
+    /// A cached reference to <see cref="PhysBody"/>
     /// </summary>
     public static PhysBody Player_PhysBody { get; internal set; }
 
@@ -75,4 +77,12 @@ public static class Instances
     /// A Unity Object that should never be unloaded or destroyed.
     /// </summary>
     public static UnityEngine.Object NeverCancel { get; internal set; }
+
+    /// <summary>
+    /// Holds a cache of all loaded namespaces and their corresponding assemblies.
+    /// </summary>
+    public static readonly Dictionary<string, Assembly> namespaceToAssembly = new();
+
+
+    internal static List<IDictionary> instanceCachesToClear = new();
 }
