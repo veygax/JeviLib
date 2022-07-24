@@ -131,10 +131,13 @@ internal static class PrefsInternal
         }
 
 #if DEBUG
-        MethodInfo[] instancedMethods = type.GetMethods(Const.AllBindingFlags | BindingFlags.Static);
-        JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced method preferences, this is not allowed!");
-        JeviLib.Warn($"These methods are: ");
-        foreach (MethodInfo method in instancedMethods) JeviLib.Warn(" - " + method.Name);
+        MethodInfo[] instancedMethods = type.GetMethods(Const.AllBindingFlags | BindingFlags.Static | BindingFlags.DeclaredOnly).Where(m => m.GetCustomAttribute<Pref>() != null).ToArray();
+        if (instancedMethods.Length != 0)
+        {
+            JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced method preferences, this is not allowed!");
+            JeviLib.Warn($"These methods are: ");
+            foreach (MethodInfo method in instancedMethods) JeviLib.Warn(" - " + method.Name);
+        }
 #endif
 
         MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
