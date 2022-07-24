@@ -37,6 +37,10 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONEWORKS\BONEWORKS\MelonLoader\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+    </Reference>
     <Reference Include="MelonLoader">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONEWORKS\BONEWORKS\MelonLoader\MelonLoader.dll</HintPath>
     </Reference>
@@ -87,11 +91,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActionExtensions.cs" />
+    <Compile Include="UnityObjectComparer.cs" />
+    <Compile Include="IMGUI\DebugDraw.cs" />
+    <Compile Include="IMGUI\GUIPosition.cs" />
+    <Compile Include="IMGUI\GUIType.cs" />
+    <Compile Include="IMGUI\GUIToken.cs" />
     <Compile Include="InstancesGeneric.cs" />
     <Compile Include="Compiler_IsExternalInit.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="MelonLoaderMod.cs" />
     <Compile Include="NeverCollect.cs" />
+    <Compile Include="Patching\CMaps.cs" />
+    <Compile Include="Patching\DynTools.cs" />
+    <Compile Include="Patching\Disable.cs" />
+    <Compile Include="Patching\Hook.cs" />
+    <Compile Include="Patching\Redirect.cs" />
+    <Compile Include="Prefs\UnityDefaultColor.cs" />
     <Compile Include="Prefs\Pref.cs" />
     <Compile Include="Prefs\PrefEntries.cs" />
     <Compile Include="Prefs\Preferences.cs" />
@@ -116,6 +132,9 @@
     <Compile Include="Tweening\TweenTweenExtensions.cs" />
     <Compile Include="Tweening\PositionTween.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="Waiting\CancelCallToken.cs" />
+    <Compile Include="Waiting\CallDelayed.cs" />
+    <Compile Include="Waiting\WaitForSceneInit.cs" />
     <Compile Include="Waiting\WaitDuring.cs" />
     <Compile Include="Waiting\WaitFor.cs" />
   </ItemGroup>
