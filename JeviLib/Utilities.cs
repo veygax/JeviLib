@@ -1,13 +1,18 @@
-﻿using MelonLoader;
+﻿using HarmonyLib;
+using MelonLoader;
 using ModThatIsNotMod;
+using PuppetMasta;
 using StressLevelZero.Interaction;
 using StressLevelZero.Pool;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -20,26 +25,25 @@ public static class Utilities
 {
     static Utilities()
     {
-        IsSevenSeas();
-        IsSevenSeas();
-        IsSevenSeas();
+        IsLegitCopy();
+        IsLegitCopy();
+        IsLegitCopy();
         // make sure the runtime inlines it (i think)
     }
 
-    /// <summary>
-    /// All relevant binding flags (Public, NonPublic, Instance, Static)
-    /// </summary>
-    public const BindingFlags AllBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
     static readonly MethodInfo hashMethodInfo = AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "ModThatIsNotMod")
         .GetType("ModThatIsNotMod.Internals.MelonHashChecking")
         .GetMethod("GetMelonHash", BindingFlags.Static | BindingFlags.Public);
+    static FieldInfo discordUserIdInfo;
+    static FieldInfo discordIntegrationCurrentUserInfo;
+    static bool isEntanglementInstalled = true;
 
     /// <summary>
     /// Checks to see if the hash of the currently running executable is genuine.
     /// </summary>
     /// <returns>If the hash of the game is equal to the 1.6 version of BONEWORKS bought from Steam</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)] // should hopefully prevent harmony patches from getting to this, in case any prospective pirates think theyre slick.
-    public static bool IsSevenSeas()
+    public static bool IsLegitCopy()
     {
         return hashMethodInfo.Invoke(null, new object[] { MelonUtils.GetApplicationPath() }) as string == "1cf5b055a5dd6be6d15d6db9c0f994fb";
     }
@@ -350,5 +354,180 @@ public static class Utilities
 #else
         catch { return false; }
 #endif
+    }
+
+    /// <summary>
+    /// Gets all rigidbodies from the given <paramref name="puppet"/>, using <see cref="PuppetMaster.muscles"/> and LINQ.
+    /// </summary>
+    /// <param name="puppet">The puppet to get muscles from.</param>
+    /// <returns>The rigidbodies of the muscles. I'm not sure if they're assured to be not <see langword="null"/>, so you may want to run </returns>
+    public static IEnumerable<Rigidbody> GetMuscleRigidbodies(PuppetMaster puppet)
+    {
+        return puppet.muscles.Select(s => s.rigidbody);
+    }
+
+    /// <summary>
+    /// Attempts to retrieve a <see cref="Type"/> using only its name and namespace, and an asynchronously created cache.
+    /// <para>If the cache isn't built yet, this method will likely fail. Check via <see cref="JeviLib.DoneMappingNamespacesToAssemblies"/>.</para>
+    /// </summary>
+    /// <param name="namezpaze">The name of the namespace, without a leading or trailing period.</param>
+    /// <param name="clazz">The Type's name.</param>
+    /// <returns>The <see cref="Type"/> represented by the combined namespace and class name, or <see langword="null"/> if it wasn't found.</returns>
+    public static Type GetTypeFromString(string namezpaze, string clazz)
+    {
+#if DEBUG
+        if (!JeviLib.DoneMappingNamespacesToAssemblies) JeviLib.Log("Not done mapping namespaces to assemblies! Getting type from string may falsely return null!");
+#endif
+
+        if (JeviLib.namespaceAssemblies.TryGetValue(namezpaze, out ConcurrentBag<Assembly> asms))
+        {
+
+#if DEBUG
+            JeviLib.Log($"Found the namespace '{namezpaze}' in {asms.Count} assemblies, attempting to find the type {clazz}");
+#endif
+
+            foreach (Assembly asm in asms)
+            {
+                Type t = asm.GetType(namezpaze + "." + clazz);
+                if (t != null) return t;
+            }
+
+#if DEBUG
+            JeviLib.Warn($"Unable to find a Type named '{clazz}' in the namespace '{namezpaze}' in any loaded Assemblies");
+#endif
+        }
+#if DEBUG
+        else JeviLib.Warn($"Unable to find the namespace '{namezpaze}' in any loaded assemblies (This is probably fine/expected behavior)");
+#endif
+        return null;
+    }
+
+    /// <summary>
+    /// Get the <see cref="MethodInfo"/> behind any delegate. It can be a lambda or an actual method. See examples for examples.
+    /// </summary>
+    /// <typeparam name="TDelegate">Any delegate type, can be an Action (returns nothing/void) or a Func (returns something).</typeparam>
+    /// <param name="method">Any delegate, can be an Action (returns nothing/void) or a Func (returns something).</param>
+    /// <returns>The underlying <see cref="MethodInfo"/>, gotten from <see cref="Delegate.Method"/>.</returns>
+    /// <example>
+    /// <c>AsInfo(MethodNameHere);</c> That's it.
+    /// <c>AsInfo(() => { return "top 10 things to do in michigan\n1. leave"; });</c> That's it.
+    /// </example>
+    public static MethodInfo AsInfo<TDelegate>(TDelegate method) where TDelegate : Delegate
+    {
+        // this is a bit chickenshit i think
+        // it feels too easy
+        return method.Method;
+    }
+
+    /// <summary>
+    /// Creates a new harmony method from the delegate's MethodInfo.
+    /// </summary>
+    /// <typeparam name="TDelegate">Any delegate type, can be Func or Action</typeparam>
+    /// <param name="method">a method or delegate</param>
+    /// <returns>A <see cref="HarmonyMethod"/> of the delegate.</returns>
+    public static HarmonyMethod ToHarmony<TDelegate>(TDelegate method) where TDelegate : Delegate
+    {
+        return AsInfo(method).ToNewHarmonyMethod();
+    }
+
+    /// <summary>
+    /// Clones an instance of <see cref="BaseEnemyConfig.HealthSettings"/> because it's not a <see cref="UnityEngine.Object"/>, thus <see cref="UnityEngine.Object.Instantiate(UnityEngine.Object)"/> (cloning) doesn't work on it.
+    /// </summary>
+    /// <param name="hs">The health settings to be cloned.</param>
+    /// <returns>A new instance of <see cref="BaseEnemyConfig.HealthSettings"/> with the values of the original.</returns>
+    public static BaseEnemyConfig.HealthSettings CloneHealthSettings(BaseEnemyConfig.HealthSettings hs)
+    {
+        return new()
+        {
+            aggression = hs.aggression,
+            irritability = hs.irritability,
+            maxAppendageHp = hs.maxAppendageHp,
+            maxHitPoints = hs.maxHitPoints,
+            maxStunSeconds = hs.maxStunSeconds,
+            minHeadImpact = hs.minHeadImpact,
+            minLimbImpact = hs.minLimbImpact,
+            minSpineImpact = hs.minSpineImpact,
+            placability = hs.placability,
+            stunRecovery = hs.stunRecovery,
+            vengefulness = hs.vengefulness
+        };
+    }
+
+    /// <summary>
+    /// Creates a <see cref="Thread"/>, sets <see cref="Thread.IsBackground"/> to <see langword="true"/>, starts it, then returns it.
+    /// </summary>
+    /// <param name="call">An action to be invoked</param>
+    /// <returns>A background thread.</returns>
+    public static Thread StartBGThread(Action call)
+    {
+        Thread thread = new(() => { call(); });
+        thread.IsBackground = true;
+        thread.Start();
+        return thread;
+    }
+
+    /// <summary>
+    /// Creates a <see cref="Thread"/>, sets <see cref="Thread.IsBackground"/> to <see langword="true"/>, starts it, then returns it.
+    /// </summary>
+    /// <param name="call">An action to be invoked</param>
+    /// <param name="param">The parameter to be passed into the call.</param>
+    /// <returns>A background thread.</returns>
+    public static Thread StartBGThread<T>(Action<T> call, T param)
+    {
+        Thread thread = new((object obj) => { call((T)obj); });
+        thread.IsBackground = true;
+        thread.Start(param);
+        return thread;
+    }
+
+    /// <summary>
+    /// Try-catches a get request for the user's Steam ID so you don't have to! This method will fail if Steamworks isn't yet initialized or if the game is an Oculus copy.
+    /// </summary>
+    /// <param name="steamID">A <see cref="Steamworks.CSteamID"/> that will be filled in with the result of <see cref="Steamworks.SteamUser.GetSteamID"/>. Will be <see langword="default"/> if the call fails.</param>
+    /// <returns>Whether or not the call was successful.</returns>
+    /// <remarks>Also useful for CMaps because Steamworks is in Asm C# Firstpass, so the classes containing the steamworks methods aren't present, as well as the ripper not putting method stubs in dummy classes.</remarks>
+    public static bool TryGetSteamID(out Steamworks.CSteamID steamID)
+    {
+        try
+        {
+            steamID = Steamworks.SteamUser.GetSteamID();
+            return true;
+        }
+        catch
+#if DEBUG
+            (Exception ex)
+#endif
+        {
+#if DEBUG
+            JeviLib.Warn("Failed to get Steam ID due to exception: " + ex.Message);
+#endif
+            steamID = default;
+            return false;
+        }   
+    }
+
+    /// <summary>
+    /// Gets the user's Discord user ID, if Entanglement is installed.
+    /// </summary>
+    /// <param name="userID">The Discord user ID. Will be <see langword="default"/> if Entanglement isn't installed.</param>
+    /// <returns>Whether or not the data getting via reflection was successful.</returns>
+    public static bool TryGetDiscordID(out long userID)
+    {
+        if (isEntanglementInstalled && discordUserIdInfo == null)
+        {
+            discordUserIdInfo = GetTypeFromString("Discord", "User")?.GetField("Id", Const.AllBindingFlags);
+            discordIntegrationCurrentUserInfo = GetTypeFromString("Entanglement.Network", "DiscordIntegration")?.GetField("currentUser", Const.AllBindingFlags);
+            isEntanglementInstalled = discordUserIdInfo != null;
+        }
+
+        if(!isEntanglementInstalled)
+        {
+            userID = default;
+            return false;
+        }
+
+        object currUser = discordIntegrationCurrentUserInfo.GetValue(null); // its static
+        userID = (long)discordUserIdInfo.GetValue(currUser); // its not static
+        return true;
     }
 }
