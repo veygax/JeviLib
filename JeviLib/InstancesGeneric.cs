@@ -1,23 +1,57 @@
-﻿using System.Collections.Generic;
+﻿using HarmonyLib;
+using Jevil.Patching;
+using MelonLoader;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace Jevil;
 
 /// <summary>
-/// ComponentCache, but static, in the Mono domain, with helper methods, and, of course, documentation.
+/// ComponentCache, but static, in the Mono domain, with more helper methods, and, of course, documentation.
 /// </summary>
 /// <typeparam name="T">Any component, can be injected or native to the IL2CPP domain.</typeparam>
 public static class Instances<T> where T : Component
 {
-    static readonly Dictionary<GameObject, T> cache = new();
+    static bool triedAutocache = false;
+    static bool isAutocaching = false;
+    static readonly Dictionary<GameObject, T> cache = new(new UnityObjectComparer<GameObject>());
+    static readonly HarmonyMethod autoCacheHMethod = typeof(Instances<T>).GetMethod(nameof(AutoCachePatch), BindingFlags.Static | BindingFlags.NonPublic).ToNewHarmonyMethod();
 
     static Instances()
     {
 #if DEBUG
         JeviLib.Log("Initialized Instances Cache of " + typeof(T).Name);
 #endif
+        Instances.instanceCachesToClear.Add(cache);
     }
 
+    /// <summary>
+    /// Determines whether the cache should be cleared whenever <see cref="MelonMod.OnSceneWasInitialized(int, string)"/> is called. Defaults to true.
+    /// </summary>
+    public static bool ClearOnSceneInit
+    {
+        get
+        {
+            return Instances.instanceCachesToClear.Contains(cache);
+        }
+        set
+        {
+            bool cosi = ClearOnSceneInit;
+            if (value && !cosi) Instances.instanceCachesToClear.Add(cache);
+            else if (cosi) Instances.instanceCachesToClear.Remove(cache);
+        }
+    }
+
+    /// <summary>
+    /// Removes a key from the cache.
+    /// <para>I'm not sure why you'd want to do this, but you have the option to.</para>
+    /// </summary>
+    /// <param name="go">The <see cref="GameObject"/> to be deregistered from the cache.</param>
+    /// <returns><see langword="true"/> if the value was successfully removed, otherwise <see langword="false"/>. Returns <see langword="false"/> if the value was not found in the cache.</returns>
+    public static bool Remove(GameObject go) => cache.Remove(go);
+    
     /// <summary>
     /// Attempts to get the component from the cache, get it using <see cref="GameObject.GetComponent{T}"/>, and if all else fails, add the component to the GameObject and add it to the cache.
     /// </summary>
@@ -40,9 +74,9 @@ public static class Instances<T> where T : Component
     /// Add the component as attached to the GameObject <paramref name="go"/>.
     /// </summary>
     /// <param name="go">The <see cref="GameObject"/> that the cache should check for.</param>
-    /// <param name="component"></param>
+    /// <param name="component">The value that should should be remembered with <paramref name="go"/>.</param>
     /// <returns>Whether there was already a component of type <typeparamref name="T"/> on the GameObject <paramref name="go"/>.
-    /// <br><see langword="true"/> if <paramref name="go"/> already existed in the cache, <see langword="false"/> if not or if <paramref name="go"/> was <see langword="null"/>.</br>
+    /// <br><see langword="true"/> if <paramref name="go"/> already existed in the cache (and was overwritten), <see langword="false"/> if not or if <paramref name="go"/> was <see langword="null"/>.</br>
     /// </returns>
     public static bool AddManual(GameObject go, T component)
     {
@@ -80,6 +114,13 @@ public static class Instances<T> where T : Component
     /// <param name="go">The <see cref="GameObject"/> to check the cache for.</param>
     /// <returns><see langword="true"/> if cache[<paramref name="go"/>] exists, otherwise <see langword="false"/>.</returns>
     public static bool Has(GameObject go) => cache.ContainsKey(go);
+
+    /// <summary>
+    /// Whether or not the cache has <paramref name="t"/> in it.
+    /// </summary>
+    /// <param name="t">The <see cref="Transform"/> whose <see cref="Component.gameObject"/> to check the cache for.</param>
+    /// <returns><see langword="true"/> if cache[<paramref name="t"/>.gameObject] exists, otherwise <see langword="false"/>.</returns>
+    public static bool Has(Transform t) => Has(t.gameObject);
 
     /// <summary>
     /// Finds the first Transform that is a parent of <paramref name="t"/> that has a component of the given type.
@@ -133,4 +174,63 @@ public static class Instances<T> where T : Component
     /// <param name="go">The GameObject whose parents to check.</param>
     /// <returns>The first component found going upwards from <paramref name="go"/>, or null if there are none.</returns>
     public static T GetUpwards(GameObject go) => GetUpwards(go.transform);
+
+    /// <summary>
+    /// Get the <typeparamref name="T"/> in immediate children.
+    /// </summary>
+    /// <param name="go"></param>
+    /// <param name="cacheOnly">Whether or not to only check the cache.</param>
+    /// <returns>The component if it was found, or <see langword="null"/> if it wasn't.</returns>
+    public static T GetInImmediateChildren(GameObject go, bool cacheOnly = true)
+    {
+        T comp = null;
+        foreach (Transform child in go)
+        {
+            if (cacheOnly && Has(child)) comp = Get(child);
+            else comp = Get(child);
+
+            if (comp != null) break;
+        }
+        return comp;
+    }
+
+    /// <summary>
+    /// Attempts to patch <typeparamref name="T"/>'s Awake method with a Postfix that caches the type. If there's no Awake, it tries the Start method.
+    /// </summary>
+    /// <returns>Whether a patch was successful.</returns>
+    public static bool TryAutoCache()
+    {
+        if (triedAutocache) return isAutocaching;
+        triedAutocache = true;
+
+        Type type = typeof(T);
+        MethodInfo patcho = type.GetMethod("Awake", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (patcho == null) patcho = type.GetMethod("Start", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (patcho == null) return false;
+
+        try
+        {
+            Hook.OntoMethod(patcho, AutoCachePatch); // lets see if Hook is production ready
+#if DEBUG
+            JeviLib.Log($"Successfully hooked {type.Name}'s {patcho.Name}() method for autocaching.");
+#endif
+            isAutocaching = true;
+            return true;
+        }
+        catch 
+        {
+#if DEBUG
+            JeviLib.Log($"Failed to patch {type.Name} to autocache.");
+#endif
+            return false;
+        } 
+    }
+
+    private static void AutoCachePatch(T instance)
+    {
+#if DEBUG
+        JeviLib.Log($"Autocache for {typeof(T).Name} called, caching now.");
+#endif
+        cache[instance.gameObject] = instance;
+    }
 }
