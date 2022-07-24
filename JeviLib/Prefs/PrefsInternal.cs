@@ -19,6 +19,7 @@ internal static class PrefsInternal
         MelonPreferences_Category mpCat = MelonPreferences.CreateCategory(categoryName);
         MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
         PrefEntries ret = new(mpCat, bmCat);
+        if (prefSubcategory) bmCat = bmCat.CreateSubCategory(Preferences.prefSubcategoryName, categoryColor);
 
 #if DEBUG
         var instanceFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
@@ -49,12 +50,12 @@ internal static class PrefsInternal
             {
                 var entry = SetEntry(mpCat, field, out string toSet, ep.desc);
                 //field.SetValue(entry.)
-                bmCat.CreateStringElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(bool))
             {
                 var entry = SetEntry(mpCat, field, out bool toSet, ep.desc);
-                bmCat.CreateBoolElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(Color))
             {
@@ -79,7 +80,7 @@ internal static class PrefsInternal
                     JeviLib.Warn("Replacing it with its default value of " + dv);
                     entry.Value = dv.ToString();
                 }
-                bmCat.CreateEnumElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); });
+                bmCat.CreateEnumElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); });
             }
 #if DEBUG
             else
@@ -130,6 +131,47 @@ internal static class PrefsInternal
         }
 
 #if DEBUG
+        MethodInfo[] instancedMethods = type.GetMethods(Const.AllBindingFlags | BindingFlags.Static);
+        JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced method preferences, this is not allowed!");
+        JeviLib.Warn($"These methods are: ");
+        foreach (MethodInfo method in instancedMethods) JeviLib.Warn(" - " + method.Name);
+#endif
+
+        MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        foreach (MethodInfo method in methods)
+        {
+            Pref pref = method.GetCustomAttribute<Pref>();
+            if (pref == null) continue;
+#if DEBUG
+            if (method.GetParameters().Length != 0)
+            {
+                JeviLib.Warn($"Method {type.FullName}.{method.Name} takes parameters! This makes it ineligible to become a FunctionElement!");
+                continue;
+            }
+#endif
+
+            Action deleg8; // "delegate" is a keyword
+            try
+            {
+                deleg8 = (Action)method.CreateDelegate(typeof(Action));
+            }
+            catch
+            {
+#if DEBUG
+                JeviLib.Warn($"Failed to create FunctionElement delegate for {type.FullName}.{method.Name}, this is likely because it returns a value, which is fine. Falling back to the slower MethodInfo.Invoke");
+#endif
+                deleg8 = () => { method.Invoke(null, new object[0]); };
+            }
+#if DEBUG
+
+#endif
+            bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+#if DEBUG
+            JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
+#endif
+        }
+
+#if DEBUG
         JeviLib.Log($"Created {mpCat.Entries.Count} entries in the preference category for {type.Name}");
 #endif
         if (mpCat.Entries.Count != 0) mpCat.SaveToFile(false);
@@ -147,4 +189,19 @@ internal static class PrefsInternal
         field.SetValue(null, defaultValue);
         return entry;
     }
+
+    internal static Color EnumToColor(UnityDefaultColor udc) => udc switch
+        {
+            UnityDefaultColor.RED => Color.red,
+            UnityDefaultColor.GREEN => Color.green,
+            UnityDefaultColor.BLUE => Color.blue,
+            UnityDefaultColor.WHITE => Color.white,
+            UnityDefaultColor.BLACK => Color.black,
+            UnityDefaultColor.YELLOW => Color.yellow,
+            UnityDefaultColor.CYAN => Color.cyan,
+            UnityDefaultColor.MAGENTA => Color.magenta,
+            UnityDefaultColor.GRAY => Color.gray,
+            _ => throw new ArgumentException($"Unrecognized {nameof(UnityDefaultColor)} value: {udc}"),
+        };
+    
 }

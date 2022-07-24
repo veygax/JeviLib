@@ -14,6 +14,10 @@ namespace Jevil.Prefs;
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class Preferences : Attribute
 {
+    /// <summary>
+    /// The name of the BoneMenu subcategory created when <c>prefSubcategory</c> is set to True in your Preferences attribute.
+    /// </summary>
+    public static readonly string prefSubcategoryName = "Preferences";
     readonly string categoryName;
     readonly bool prefSubcategory;
 
