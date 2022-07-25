@@ -4,6 +4,8 @@ using UnityEngine;
 
 namespace Jevil.Prefs;
 
+//todo: support loading preferences (maybe using delegates?) from OnPreferencesLoaded
+
 /// <summary>
 /// Designates a static member (private or public) as a preference. The predefined value will be treated as the default and will be overridden by BoneMenu or MelonPreferences values.
 /// <para>Used for strings and enums.</para>
@@ -29,7 +31,7 @@ public sealed class Pref : Attribute
     /// <summary>
     /// Declare a field as a preference with a description in MelonPreferences. Color defaults to white.
     /// </summary>
-    /// <param name="description">MelonPrefs description. Enums cannot have descriptions, as their descriptions will be used to display the names of the enum values.</param>
+    /// <param name="description">MelonPrefs description. Enums cannot have descriptions, as their descriptions will be used to display the names of the enum values. Functions will use this instead of the friendly-ified method name if this is present.</param>
     /// <param name="colorR">The R (red) component of the Pref's BoneMenu element</param>
     /// <param name="colorG">The G (green) component of the Pref's BoneMenu element</param>
     /// <param name="colorB">The B (blue) component of the Pref's BoneMenu element</param>
@@ -38,7 +40,7 @@ public sealed class Pref : Attribute
     /// <summary>
     /// Declare a member as a preference with a description in MelonPreferences. Color defaults to white.
     /// </summary>
-    /// <param name="description">MelonPrefs description. Enums cannot have descriptions, as their descriptions will be used to display the names of the enum values.</param>
+    /// <param name="description">MelonPrefs description. Enums cannot have descriptions, as their descriptions will be used to display the names of the enum values. Functions will use this instead of the friendly-ified method name if this is present.</param>
     /// <param name="boneMenuColor">The <see cref="MenuElement"/> color.</param>
     public Pref(string description = "", UnityDefaultColor boneMenuColor = UnityDefaultColor.WHITE) { desc = description; color = PrefsInternal.EnumToColor(boneMenuColor); }
 }
