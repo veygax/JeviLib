@@ -5,6 +5,7 @@ using PuppetMasta;
 using StressLevelZero.Interaction;
 using StressLevelZero.Pool;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,6 +38,9 @@ public static class Utilities
     static FieldInfo discordUserIdInfo;
     static FieldInfo discordIntegrationCurrentUserInfo;
     static bool isEntanglementInstalled = true;
+#if DEBUG
+    static Type inspectorManager;
+#endif
 
     /// <summary>
     /// Checks to see if the hash of the currently running executable is genuine.
@@ -186,19 +190,6 @@ public static class Utilities
         obj.transform.SetPositionAndRotation(position, rotation);
     }
 
-
-    /* Input: [
-     *      [1,2,3,4,5,6,7]
-     *      [2,3,4,5,6,7,8,9,10]
-     * ]
-     * Output: [
-     *      3, <- header, says how many things there are
-     *      ushorts(7,9)  <- header, says where to split
-     *      1,2,3,4,5,6,7,
-     *      2,3,4,5,6,7,8,9,10
-     *      
-     * ]
-     */
     /// <summary>
     /// So I basically made this method over the course of a few days in my Comp Sci class and I dont quite recall how it works aside from the rundown.
     /// <para>The first byte dictates how many arrays were in the source 2dArray. The following <c>[value of the first byte] * 2</c> bytes compose the rest of the header.</para>
@@ -206,6 +197,20 @@ public static class Utilities
     /// </summary>
     /// <param name="bytess">The source arrays to be joined together.</param>
     /// <returns>A single array consisting of a header and the values of the source arrays.</returns>
+    /// <remarks>
+    /// <para><b>Here's a rundown of how this method packs arrays. Note that ushorts are two bytes long, so this method will fail if one of your arrays is over 64KB in length.</b></para>
+    /// <c>
+    /// <br>Input: [</br>
+    /// <br>....[1,2,3,4,5,6,7]</br>
+    /// <br>....[2,3,4,5,6,7,8,9,10]</br>
+    /// <br>]</br>
+    /// <br>Output: [</br>
+    /// <br>....2, (header, says how many things there are)</br>
+    /// <br>....ushorts(7, 9)  (header, says lengths of elements, so method knows where to split)</br>
+    /// <br>....1,2,3,4,5,6,7,</br>
+    /// <br>....2,3,4,5,6,7,8,9,10</br>
+    /// <br>]</br>
+    /// </c></remarks>
     public static byte[] JoinBytes(byte[][] bytess)
     {
         byte arrayCount = (byte)bytess.Length;
@@ -530,4 +535,19 @@ public static class Utilities
         userID = (long)discordUserIdInfo.GetValue(currUser); // its not static
         return true;
     }
+
+    /// <summary>
+    /// Focuses something in a UnityExplorer inspector, if it is installed (and if this is in Debug mode).
+    /// </summary>
+    /// <param name="obj">Any object, can be a <see cref="Component"/>, <see cref="GameObject"/>, or even a normal Mono domain thing.</param>
+    public static void InspectInUnityExplorer(object obj)
+    {
+#if DEBUG
+        inspectorManager ??= GetTypeFromString("UnityExplorer", "InspectorManager");
+        // public static void Inspect(object obj, CacheObjectBase sourceCache = null)
+        MethodInfo minf = inspectorManager?.GetMethod("Inspect");
+        minf?.Invoke(null, new object[] { obj, null });
+#endif
+    }
+    
 }
