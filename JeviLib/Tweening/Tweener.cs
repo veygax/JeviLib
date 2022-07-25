@@ -21,7 +21,7 @@ public static class Tweener
         {
             TweenBase tween = tweens[i];
             // check using the equality operator because then it checks if its destroyed.
-            if (tween.CancelWith == null)
+            if (tween.CancelWith.INOC())
             {
 #if DEBUG
                 JeviLib.Log($"Cancelling {tween.name}; Its corresponding UnityEngine.Object was destroyed or null.");
@@ -29,6 +29,7 @@ public static class Tweener
                 tween.Active = false;
                 tween.IsCancelled = true;
                 tweens.RemoveAt(i);
+                continue;
             }
             else if (tween.UnscaledTimeRemaining == 0)
             {
@@ -37,6 +38,7 @@ public static class Tweener
 #endif
                 tween.FinishInternal();
                 tweens.RemoveAt(i);
+                continue;
             }
 
             float increment;
