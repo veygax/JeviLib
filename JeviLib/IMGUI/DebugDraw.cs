@@ -21,10 +21,28 @@ public static class DebugDraw
     /// </summary>
     /// <param name="text">The text to appear in the box.</param>
     /// <param name="position">The position of the text.</param>
-    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/>.</returns>
+    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
     public static GUIToken Text(string text, GUIPosition position)
     {
         GUIToken ret = new(text);
+#if DEBUG
+        ret.position = position;
+        tokens.Add(ret);
+#endif
+        return ret;
+    }
+
+    /// <summary>
+    /// Tracks a variable using a getter you provide and the ToString provided by that value.
+    /// </summary>
+    /// <param name="varName">The variable's name</param>
+    /// <param name="position">The element's position on the screen</param>
+    /// <param name="getter">The variable getter. Will be called in Update.</param>
+    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
+    public static GUIToken TrackVariable<T>(string varName, GUIPosition position, Func<T> getter)
+    {
+        Func<object> boxedGetter = () => getter;
+        GUIToken ret = new(varName + ": " + getter().ToString(), boxedGetter);
 #if DEBUG
         ret.position = position;
         tokens.Add(ret);
@@ -38,7 +56,7 @@ public static class DebugDraw
     /// <param name="text">The button's label</param>
     /// <param name="position">The position onscreen to draw the IMGUI element.</param>
     /// <param name="call">The call to invoke when the button is pressed.</param>
-    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/>.</returns>
+    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
     public static GUIToken Button(string text, GUIPosition position, Action call)
     {
         GUIToken ret = new(text, call);
@@ -56,7 +74,7 @@ public static class DebugDraw
     /// <param name="buttonText">The text in the button.</param>
     /// <param name="position">The position on screen to draw the IMGUI elements.</param>
     /// <param name="call">A delegate that will have the text in the text field passed into it when called.</param>
-    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/>.</returns>
+    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
     public static GUIToken TextButton(string startingText, string buttonText, GUIPosition position, Action<string> call)
     {
         GUIToken ret = new(startingText, buttonText, call);
@@ -73,7 +91,7 @@ public static class DebugDraw
     /// <param name="startingText">The starting text inside the text area.</param>
     /// <param name="position">The position on screen to draw the IMGUI elements.</param>
     /// <param name="call">A delegate that will have the text in the text field passed into it when called.</param>
-    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/>.</returns>
+    /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
     public static GUIToken TextButton(string startingText, GUIPosition position, Action<string> call) 
         => TextButton(startingText, "CALL", position, call);
 

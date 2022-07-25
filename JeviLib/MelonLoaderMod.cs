@@ -22,7 +22,7 @@ internal static class JevilBuildInfo
     public const string Name = "JeviLib"; // Name of the Mod.  (MUST BE SET)
     public const string Author = "extraes"; // Author of the Mod.  (Set as null if none)
     public const string Company = null; // Company that made the Mod.  (Set as null if none)
-    public const string Version = "2.0.0"; // Version of the Mod.  (MUST BE SET)
+    public const string Version = "2.0.1"; // Version of the Mod.  (MUST BE SET)
     public const string DownloadLink = "https://boneworks.thunderstore.io/package/extraes/JeviLib/"; // Download Link for the Mod.  (Set as null if none)
     public const bool Debug
 #if DEBUG
@@ -198,6 +198,17 @@ public class JeviLib : MelonMod
     {
         try
         {
+            foreach (GUIToken tkn in DebugDraw.tokens)
+            {
+                try
+                {
+                    if (tkn.type == GUIType.TRACKER) tkn.SetText(tkn.txtAlt + ": " + tkn.getter().ToString());
+                }
+                catch(Exception ex)
+                {
+                    JeviLib.Error($"Exception while grabbing variable for IMGUI:\n\t\t{ex.GetType().FullName} '{ex.Message}'\n\t\t\t@ {ex.TargetSite.DeclaringType.FullName}.{ex.TargetSite.Name} (in {ex.Source})");
+                }
+            }
             IEnumerable<GUIToken> topLeft = DebugDraw.tokens.Where(t => t.position == GUIPosition.TOP_LEFT);
             IEnumerable<GUIToken> topRight = DebugDraw.tokens.Where(t => t.position == GUIPosition.TOP_RIGHT);
             IEnumerable<GUIToken> bottomLeft = DebugDraw.tokens.Where(t => t.position == GUIPosition.BOTTOM_LEFT);
@@ -257,6 +268,7 @@ public class JeviLib : MelonMod
     {
         switch (token.type)
         {
+            case GUIType.TRACKER:
             case GUIType.TEXT:
                 GUI.Box(rect, token.txt);
                 break;

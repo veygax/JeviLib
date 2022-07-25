@@ -11,4 +11,5 @@ internal enum GUIType
     TEXT,
     BUTTON,
     TEXT_BUTTON,
+    TRACKER,
 }

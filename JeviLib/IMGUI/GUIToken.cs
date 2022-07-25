@@ -23,6 +23,7 @@ public sealed class GUIToken
     /// Height of the IMGUI box. Defaults to 10.
     /// </summary>
     public int height = 20;
+    internal Func<object> getter;
     internal Action call;
     internal Action<string> callStr;
     internal string txt;
@@ -37,11 +38,21 @@ public sealed class GUIToken
 #endif
     }
 
+    internal GUIToken(string text, Func<object> call)
+    {
+#if DEBUG
+        type = GUIType.TRACKER;
+        this.getter = call;
+        SetText(text);
+#endif
+    }
+
     internal GUIToken(string text, Action call)
     {
 #if DEBUG
         type = GUIType.BUTTON;
         this.call = call;
+        txtAlt = text;
         SetText(text);
 #endif
     }
