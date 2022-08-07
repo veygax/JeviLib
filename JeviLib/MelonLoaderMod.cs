@@ -94,6 +94,7 @@ public class JeviLib : MelonMod
         Instances.NeverCancel = go;
 
 
+        //onNamespaceAssembliesCompleted += CMaps.FixUnload;
         Spawning.Zombies.Init();
         Task.Run(LogFromQueue);
 
@@ -154,7 +155,7 @@ public class JeviLib : MelonMod
         Instances.DataManager =
             GameObject.FindObjectOfType<Data_Manager>();
         Instances.MusicMixer =
-            Instances.DataManager.audioManager.audioMixer.FindMatchingGroups("Music").First();
+            Instances.DataManager.audioManager.audioMixer.FindMatchingGroups("Music").First(n => n.name == "Music");
         Instances.SFXMixer =
             Instances.DataManager.audioManager.audioMixer.FindMatchingGroups("SFX").First();
         // Separate cameras because it's better this way, I think. It's more distinguishable even if it requires two lines to keep the two "in sync"
