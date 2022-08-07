@@ -1,4 +1,5 @@
-﻿using StressLevelZero;
+﻿using ModThatIsNotMod.Nullables;
+using StressLevelZero;
 using StressLevelZero.Combat;
 using StressLevelZero.Pool;
 using System;
@@ -15,19 +16,13 @@ namespace Jevil.Spawning;
 /// </summary>
 public static class Ammo
 {
-    static bool successfullyInit = false;
-
     static Dictionary<Weight, Pool> ammoPools = new Dictionary<Weight, Pool>();
 
     internal static void Init()
     {
-        if (successfullyInit) return;
-
         ammoPools.Clear();
-        ammoPools[Weight.LIGHT] = PoolManager.DynamicPools["Ammo Box Small 2500"];
-        ammoPools[Weight.MEDIUM] = PoolManager.DynamicPools["Ammo Box Medium 2500"];
-
-        successfullyInit = !ammoPools.Values.Any(p => p == null);
+        ammoPools[Weight.LIGHT] = PoolManager.GetPool("Ammo Box Small 2500");
+        ammoPools[Weight.MEDIUM] = PoolManager.GetPool("Ammo Box Medium 2500");
     }
 
     /// <summary>
@@ -49,9 +44,14 @@ public static class Ammo
     /// <returns>An inactive spawned ammo box.</returns>
     public static GameObject Spawn(Weight ammoWgt, int ammoCount, Vector3 pos, Quaternion rot)
     {
+#if DEBUG
+        if (ammoWgt == Weight.HEAVY) 
+            JeviLib.Warn("Cannot spawn Heavy ammo, JeviLib does not grab the pool for it! This operation will throw a KeyNotFoundException!");
+#endif
         Pool pool = ammoPools[ammoWgt];
         
-        GameObject spawnedAmmo = pool.InstantiatePoolee(pos, rot).gameObject;
+        //GameObject spawnedAmmo = pool.InstantiatePoolee(pos, rot).gameObject; changed b/c instantiates new gameobject (no way fr?)
+        GameObject spawnedAmmo = pool.Spawn(pos, rot, null, false);
         AmmoPickup pickup = spawnedAmmo.GetComponentInChildren<AmmoPickup>();
         pickup.ammoCount = ammoCount;
         return spawnedAmmo;

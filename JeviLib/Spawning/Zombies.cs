@@ -1,4 +1,5 @@
 ﻿using MelonLoader.Assertions;
+using ModThatIsNotMod.Nullables;
 using PuppetMasta;
 using StressLevelZero.AI;
 using StressLevelZero.Pool;
@@ -18,7 +19,7 @@ namespace Jevil.Spawning;
 public static class Zombies
 {
     private static Pool zombiePool;
-
+    static TriggerRefProxy playerProxy;
     static readonly Dictionary<ZombieType, BaseEnemyConfig> zombieConfigs = new(Enum.GetValues(typeof(ZombieType)).Length);
 
     internal static void Init()
@@ -75,18 +76,27 @@ public static class Zombies
     /// <returns>The inactive zombie's root gameobject.</returns>
     public static GameObject Spawn(Vector3 pos, Quaternion rot, ZombieType zt, bool aggro)
     {
-        if (zombiePool == null) zombiePool = GameObject.FindObjectsOfType<Pool>().FirstOrDefault(p => p.name == "pool - Ford Early Exit Headset");
+        if (zombiePool == null) 
+            zombiePool = GameObject.FindObjectsOfType<Pool>().FirstOrDefault(p => p.name == "pool - Ford Early Exit Headset");
+        if (playerProxy.INOC()) 
+            playerProxy = GameObject.FindObjectsOfType<TriggerRefProxy>().FirstOrDefault(t => t.transform.IsChildOfRigManager());
 #if DEBUG
         LemonAssert.IsFalse(zombieConfigs[0] == null, "Zombie configs should not be null! The first one was found to be null! Get the lib developer to fix this!");
 #endif
         BaseEnemyConfig conf = zombieConfigs[zt];
 
-        GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject;
-        AIBrain braiiinnnsssss = Instances<AIBrain>.GetInImmediateChildren(spawned);
+        //GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject; changed b/c instantiates new gameobject (no way fr?)
+        GameObject spawned = zombiePool.Spawn(pos, rot, null, false);
+        AIBrain braiiinnnsssss = Instances<AIBrain>.Get(spawned);
         
         // do 2 of em because im not sure what the difference is lol
         braiiinnnsssss.SetBaseConfig(conf);
         conf.ApplyTo(braiiinnnsssss.behaviour);
+
+        if (aggro)
+        {
+            braiiinnnsssss.behaviour.SetAgro(playerProxy);
+        }
 
         return spawned;
     }
@@ -113,13 +123,31 @@ public static class Zombies
         hs.maxStunSeconds = maxStunSeconds ?? hs.maxStunSeconds;
         clonefig.healthSettings = hs;
 
-        GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject;
-        AIBrain brainiac = Instances<AIBrain>.GetInImmediateChildren(spawned);
-        
+        GameObject spawned = NullableMethodExtensions.Spawn(zombiePool, pos, rot, null, null);
+        AIBrain brainiac = Instances<AIBrain>.Get(spawned);
+
         brainiac.SetBaseConfig(clonefig);
         clonefig.ApplyTo(brainiac.behaviour);
         return spawned;
     }
+
+    /// <summary>
+    /// Aggros an AIBrain (NPC) onto the player.
+    /// </summary>
+    /// <param name="braniac">The AIBrain to aggro on the player.</param>
+    public static void AggroOnPlayer(AIBrain braniac) // braniac maniac from the pvz soundtrac. i mean soundtrack.
+    {
+        if (playerProxy.INOC())
+            playerProxy = GameObject.FindObjectsOfType<TriggerRefProxy>().FirstOrDefault(t => t.transform.IsChildOfRigManager());
+        braniac.behaviour.SetAgro(playerProxy);
+    }
+
+    /// <summary>
+    /// Returns the config corresponding to 
+    /// </summary>
+    /// <param name="zt">The type of zombie to get the config for.</param>
+    /// <returns></returns>
+    public static BaseEnemyConfig GetConfigOfType(ZombieType zt) => zombieConfigs[zt];
 }
 /*
 - Assets/Export/EnemyConfigs/EarlyExit_Slow_Throw_Tank.asset
