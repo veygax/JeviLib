@@ -92,17 +92,19 @@ public static class TweenExtensions
     /// <param name="clip">The clip to switch to.</param>
     /// <param name="lengthStop">The duration of the first Tween, before the AudioSource gets stopped.</param>
     /// <param name="lengthStart">The duration of the second Tween, before the AudioSource's volume hits 1.</param>
-    /// <returns>A <see cref="AudioTween"/> tuple representing the first tween and the second tween, respectively (and respectfully ).</returns>
-    public static (AudioTween, AudioTween) TweenSwitchClips(this AudioSource a, AudioClip clip, float lengthStop, float lengthStart)
+    /// <param name="vol">The volume to set. If left as <see langword="null"/>, it will use the <see cref="AudioSource"/> <paramref name="a"/>'s last volume.</param>
+    /// <returns>The first AudioTween. The second can't really be grabbed, but you can stop it using <see cref="TweenTweenExtensions.Unique{T}(T)"/> if you need to.</returns>
+    public static AudioTween TweenSwitchClips(this AudioSource a, AudioClip clip, float lengthStop, float lengthStart, float? vol = null)
     {
         AudioTween tween = new(a, 0, lengthStop);
         Tweener.AddTween(tween);
         tween.RunOnFinish(() => a.clip = clip);
+        tween.RunOnFinish(() => a.time = 0f);
+        tween.RunOnFinish(() => a.Play());
 
-        AudioTween tween2 = new(a, 1, lengthStart);
-        tween.RunOnFinish(() => Tweener.AddTween(tween2));
+        tween.RunOnFinish(() => Tweener.AddTween(new AudioTween(a, vol ?? a.volume, lengthStart)));
 
-        return (tween, tween2);
+        return tween;
     }
 
     /// <summary>
