@@ -51,39 +51,8 @@ public static class Disable
             return false;
         }
 
-        Type type = Utilities.GetTypeFromString(namezpaze, clazz);
-        if (type == null)
-        {
-#if DEBUG
-            JeviLib.Log($"Unable to find the namespace '{namezpaze}' in any loaded Assemblies.");
-#endif
-            return false;
-        }
-
-        MethodInfo minf = null;
-        if (paramTypes == null) minf = type.GetMethodEasy(method);
-        else
-        {
-            MethodInfo[] minfs = type.GetMethods(Const.AllBindingFlags).Where(m => m.Name == method).ToArray();
-            foreach (MethodInfo meth in minfs)
-            {
-                string[] paramStrs = meth.GetParameters().Select(pi => pi.ParameterType.Name).ToArray();
-                if (paramStrs.SequenceEqual(paramTypes))
-                {
-                    minf = meth;
-                    break;
-                }
-            }
-        }
-
-        if (minf == null)
-        {
-#if DEBUG
-            JeviLib.Log($"The type {namezpaze}.{clazz} (from assembly {type.Assembly.GetName().Name}) doesn't have a method named {method} {(paramTypes == null ? "" : $"that matches the given {paramTypes.Length} parameters.")}");
-#endif
-            return false;
-        }
-
+        MethodInfo minf = Utilities.GetMethodFromString(namezpaze, clazz, method, paramTypes);
+        if (minf == null) return false;
         FromMethod(minf);
 
         return true;
@@ -141,6 +110,13 @@ public static class Disable
         if (predicate == null) throw new ArgumentNullException(nameof(predicate));
         if (toBeDisabled == null) throw new ArgumentNullException(nameof(toBeDisabled));
 
+        //if (predicate.Method.IsStatic)
+        //{
+        //    Log("Predicate is static, skipping dynamic method creation and directly patching.");
+        //    JeviLib.instance.HarmonyInstance.Patch(toBeDisabled, predicate.Method.ToNewHarmonyMethod());
+        //    return;
+        //}
+
         // have a redirection-specific identifier
         int thisRedirNum = disableWhenCount++;
         int thisDelegateIdx = disableWhenDelegates.Count;
@@ -161,7 +137,7 @@ public static class Disable
         Expression callExp = Expression.Invoke(delegateExp);
         LabelTarget retLabel = Expression.Label(typeof(bool), "RetLabel");
         // return <!skipOriginal>;
-        Expression retExp = Expression.Return(retLabel, Expression.Not(callExp)); // because 
+        Expression retExp = Expression.Return(retLabel, Expression.Not(callExp)); // because harmony expects false to mean "skip", but jevilib expects it to mean "dont skip"
         Expression retLabelExp = Expression.Label(retLabel, Expression.Constant(true));
 
         Log("Created expressions");
@@ -182,6 +158,42 @@ public static class Disable
         JeviLib.instance.HarmonyInstance.Patch(toBeDisabled, prefix: hPrefix);
 
     }
+
+    /// <summary>
+    /// A combination of <see cref="Utilities.GetMethodFromString(string, string, string, string[])"/> and <see cref="When(Func{bool}, MethodInfo)"/>.
+    /// </summary>
+    /// <param name="predicate">The method or lambda to determine whether the method will be disabled.</param>
+    /// <param name="namezpaze">The Type's namespace. This will be used to look through assemblies with this namespace defined.</param>
+    /// <param name="clazz">The Type's name.</param>
+    /// <param name="method">The method's name.</param>
+    /// <param name="paramTypes">The names of types of the parameters. <i>Do NOT include the namespaces in the names.</i></param>
+    /// <returns>Whether the patch was successful</returns>
+    public static bool When(Func<bool> predicate, string namezpaze, string clazz, string method, string[] paramTypes = null)
+    {
+        MethodInfo minf = Utilities.GetMethodFromString(namezpaze, clazz, method, paramTypes);
+
+        if (minf != null)
+        {
+            When(predicate, minf);
+            return true;
+        }
+        else
+        {
+#if DEBUG  
+            Log($"Unable to find {namezpaze}.{clazz}::{method} in loaded assemblies. This is likely fine and intended.");
+#endif
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="predicate">The method or lambda to determine whether the method will be disabled.</param>
+    /// <param name="type">The type with a potentially overridden method named <paramref name="methodName"/>.</param>
+    /// <param name="methodName">The name of the method. Can be overridden.</param>
+    /// <param name="paramTypes">In case you want more specificity, you can specify an array of types correspoding to the parameter types.</param>
+    public static void When(Func<bool> predicate, Type type, string methodName, Type[] paramTypes = null) => When(predicate, type.GetMethodEasy(methodName, paramTypes));
 
     #region Logging
     /// <summary>
