@@ -88,4 +88,29 @@ public static class ActionExtensions
         });
     }
 
+    /// <summary>
+    /// Calls all invokers in a try block.
+    /// </summary>
+    /// <param name="a">An action. Can be null or have no registered invokers.</param>
+    /// <param name="param">The parameter to be passed into the calls</param>
+    public static void InvokeSafeSync<T>(this Action<T> a, T param)
+    {
+        if (a == null) return;
+        Delegate[] invocations = a.GetInvocationList();
+        if (invocations.Length == 0) return;
+
+        for (int i = 0; i < invocations.Length; i++)
+        {
+            try
+            {
+                ((Action<T>)invocations[i])(param);
+            }
+            catch (Exception e)
+            {
+                JeviLib.Error("Errored while safe-invoking!");
+                JeviLib.Error(e);
+            }
+
+        }
+    }
 }
