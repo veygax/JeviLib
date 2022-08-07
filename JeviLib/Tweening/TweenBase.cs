@@ -91,9 +91,9 @@ public class TweenBase
     internal void FinishInternal()
     {
         Active = false;
-        if (!forceInvokeAll) invokeAfter?.Invoke();
-        else invokeAfter.InvokeSafeParallel();
         Finish();
+        if (!forceInvokeAll) invokeAfter?.Invoke();
+        else invokeAfter.InvokeSafeSync();
     }
 
     /// <summary>
