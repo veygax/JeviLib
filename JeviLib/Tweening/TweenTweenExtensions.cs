@@ -109,15 +109,24 @@ public static class TweenTweenExtensions
     }
 
     /// <summary>
-    /// An IEnumerator that waits for <paramref name="tween"/> to end. Uses <c>yield return null;</c> so if you want to resume in Fixed/LateUpdate, you'll need to <see langword="yield return"/> a <c>WaitFor[...]</c> afterwards for them.
+    /// An IEnumerator that waits for <paramref name="tween"/> to end.
     /// <para>Use this as <c>yield return tweenName.WaitForEnd();</c> and your coroutine will yield until the tween finishes.</para>
     /// </summary>
     /// <typeparam name="T">A tween</typeparam>
     /// <param name="tween">A tween (no shit really?)</param>
     /// <returns>An IEnumerator that waits for <paramref name="tween"/> to end.</returns>
+    /// <remarks>Uses <c>yield return null;</c> so if you want to resume in Fixed/LateUpdate, you'll need to <see langword="yield return"/> a <c>WaitFor[...]</c> afterwards for them.</remarks>
     public static IEnumerator WaitForEnd<T>(this T tween) where T : TweenBase
     {
+#if DEBUG
+        JeviLib.Warn("DEVELOPER!!! WaitForEnd has inconsistent results! It is not recommended you use it!");
+        JeviLib.Warn("I am actively looking into this! Instead, try yielding and having WaitForEnd call a lambda that sets a flag causing you to stop yielding.");
+#endif
+        yield return null;
         while (tween.Active) yield return null;
+#if DEBUG
+        JeviLib.Warn("WaitForEnd is likely bugged, it thinks a tween has completed.");
+#endif
     }
 
     /// <summary>
@@ -141,7 +150,7 @@ public static class TweenTweenExtensions
     /// <returns></returns>
     public static T DoEase<T>(this T tween) where T : TweenBase
     {
-        tween.IsEasing = false;
+        tween.IsEasing = true;
         return tween;
     }
 }
