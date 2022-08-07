@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -91,6 +92,13 @@ public static class Redirect
             // cover my ass to make sure shit doesnt break while messing around in such a critical field
             if (toBeRedirected == null) throw new ArgumentNullException(nameof(toBeRedirected));
             if (toBeRan == null) throw new ArgumentNullException(nameof(toBeRan));
+
+            if (toBeRan.Method.IsStatic && toBeRan.Method.GetParameters().Length == 0 && toBeRan.Method.ReturnType == typeof(void))
+            {
+                Log("Method to be ran is not a replacement, void, parameterless, and static; doing direct patch without dynamic method creation.");
+                JeviLib.instance.HarmonyInstance.Patch(toBeRedirected, toBeRan.Method.ToNewHarmonyMethod());
+                return;
+            }
 
             // have a redirection-specific identifier
             int thisRedirNum = redirections++;
