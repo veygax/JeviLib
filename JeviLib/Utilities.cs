@@ -43,13 +43,22 @@ public static class Utilities
 #endif
 
     /// <summary>
-    /// Checks to see if the hash of the currently running executable is genuine.
+    /// Checks to see if the hash of the currently running executable is genuine. Use in combination with <see cref="IsSteamVersion"/>.
     /// </summary>
     /// <returns>If the hash of the game is equal to the 1.6 version of BONEWORKS bought from Steam</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)] // should hopefully prevent harmony patches from getting to this, in case any prospective pirates think theyre slick.
     public static bool IsLegitCopy()
     {
         return hashMethodInfo.Invoke(null, new object[] { MelonUtils.GetApplicationPath() }) as string == "1cf5b055a5dd6be6d15d6db9c0f994fb";
+    }
+
+    /// <summary>
+    /// Tells whether the currently running game is installed from the Oculus store using a basic file check.
+    /// </summary>
+    /// <returns>Whether Boneworks_Oculus_Windows64.exe exists in the application path.</returns>
+    public static bool IsSteamVersion()
+    {
+        return !System.IO.File.Exists(System.IO.Path.Combine(Application.dataPath, "..", "Boneworks_Oculus_Windows64.exe"));
     }
 
     /// <summary>
