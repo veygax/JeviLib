@@ -18,16 +18,6 @@ public static class CMaps
     /// </summary>
     public static HarmonyLib.Harmony CMHarmony => _cmapHarmony;
 
-    /// <summary>
-    /// The <see cref="AssetBundle"/> of the most recently loaded Custom Map.
-    /// <para>This will be <see langword="null"/> if more than 90 frames have passed since any map has loaded.</para>
-    /// </summary>
-    public static AssetBundle recentlyLoadedMap;
-    /// <summary>
-    /// Informs JeviLib that it should not unload the map bundle after 90 frames elapses.
-    /// <para>If you set this to <see langword="true"/>, you must call <see cref="AssetBundle.Unload(bool)"/> on <see cref="recentlyLoadedMap"/></para>
-    /// </summary>
-    public static bool dontUnload;
 
     static readonly MethodInfo unloadMethod = typeof(AssetBundle).GetMethod(nameof(AssetBundle.Unload), Const.AllBindingFlags);
     static FieldInfo mapBundleInfo;
@@ -56,26 +46,16 @@ public static class CMaps
         isPSPExec = true;
         JeviLib.Log("CustomMaps PostScenePass redirection was called!");
         AssetBundle mapBundle = (AssetBundle)mapBundleInfo.GetValue(null);
-        recentlyLoadedMap = mapBundle;
-        MelonLoader.MelonCoroutines.Start(CoUnload());
-        JeviLib.Log("Going to attempt to unload " + mapBundle.name + " in 90 frames");
+        MelonLoader.MelonCoroutines.Start(CoUnload(mapBundle));
+        JeviLib.Log("Going to unload " + mapBundle.name + " in 90 frames");
     }
 
-    static IEnumerator CoUnload()
+    static IEnumerator CoUnload(AssetBundle toUnload)
     {
         for (int i = 0; i < 90; i++)
             yield return null;
         
-        if (dontUnload)
-        {
-            JeviLib.Log("Not unloading map bundle because it was requested. Assuming another mod or the map itself will unload the bundle.");
-            dontUnload = false;
-        }
-        else
-        {
-            JeviLib.Log("Now unloading: " + recentlyLoadedMap.name);
-            recentlyLoadedMap.Unload(false);
-            recentlyLoadedMap = null;
-        }
+        JeviLib.Log("Now unloading: " + toUnload.name);
+        toUnload.Unload(false);
     }
 }
