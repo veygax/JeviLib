@@ -22,7 +22,7 @@ internal static class JevilBuildInfo
     public const string Name = "JeviLib"; // Name of the Mod.  (MUST BE SET)
     public const string Author = "extraes"; // Author of the Mod.  (Set as null if none)
     public const string Company = null; // Company that made the Mod.  (Set as null if none)
-    public const string Version = "2.0.1"; // Version of the Mod.  (MUST BE SET)
+    public const string Version = "2.0.3"; // Version of the Mod.  (MUST BE SET)
     public const string DownloadLink = "https://boneworks.thunderstore.io/package/extraes/JeviLib/"; // Download Link for the Mod.  (Set as null if none)
     public const bool Debug
 #if DEBUG
@@ -93,11 +93,9 @@ public class JeviLib : MelonMod
         GameObject.DontDestroyOnLoad(go);
         Instances.NeverCancel = go;
 
-
-        //onNamespaceAssembliesCompleted += CMaps.FixUnload;
+        onNamespaceAssembliesCompleted += CMaps.FixUnload; // no longer dormant... the demon has been released
         Spawning.Zombies.Init();
         Task.Run(LogFromQueue);
-
 
         Task.Run(GetNamespaces);
 
