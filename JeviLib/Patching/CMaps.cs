@@ -69,13 +69,14 @@ public static class CMaps
         if (dontUnload)
         {
             JeviLib.Log("Not unloading map bundle because it was requested. Assuming another mod or the map itself will unload the bundle.");
-            dontUnload = false;
         }
         else
         {
             JeviLib.Log("Now unloading: " + recentlyLoadedMap.name);
             recentlyLoadedMap.Unload(false);
-            recentlyLoadedMap = null;
         }
+
+        dontUnload = false;
+        recentlyLoadedMap = null;
     }
 }
