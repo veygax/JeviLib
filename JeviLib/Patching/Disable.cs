@@ -90,12 +90,14 @@ public static class Disable
     /// </summary>
     /// <param name="methodToBeDisabled">The method to be disabled.</param>
     /// <param name="whileThisIsExecuting"></param>
+    [Obsolete("WhenCalledFrom does not work; Use Redirect.FromMethod, Hook.OntoMethod, and Disable.When instead.")]
     public static void WhenCalledFrom(MethodInfo methodToBeDisabled, MethodInfo whileThisIsExecuting)
     {
-        bool isExecuting = false;
-        Redirect.FromMethod(whileThisIsExecuting, () => { isExecuting = true; });
-        Hook.OntoMethod(whileThisIsExecuting, () => { isExecuting = false; });
-        When(() => isExecuting, methodToBeDisabled);
+        //bool isExecuting = false;
+        //Redirect.FromMethod(whileThisIsExecuting, () => { isExecuting = true; });
+        //Hook.OntoMethod(whileThisIsExecuting, () => { isExecuting = false; });
+        //When(() => isExecuting, methodToBeDisabled);
+        throw new NotImplementedException("WhenCalledFrom does not work; Use Redirect.FromMethod, Hook.OntoMethod, and Disable.When instead.");
     }
 
     /// <summary>
