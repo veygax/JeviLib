@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Jevil.Patching;
 
@@ -49,6 +51,9 @@ public static class CMaps
     static void PostPSP()
     {
         isPSPExec = false;
+
+        if (!MapUnloadWatcher.waitingToUnload && MapWantsBundlePersist()) 
+            MapUnloadWatcher.WaitToUnloadBundle();
     }
 
     static void PrePSP()
@@ -79,4 +84,56 @@ public static class CMaps
         dontUnload = false;
         recentlyLoadedMap = null;
     }
+
+    static bool MapWantsBundlePersist()
+    {
+#pragma warning disable UNT0008 // Null propagation on Unity objects
+        return SceneManager.GetActiveScene()
+                           .GetRootGameObjects()
+                           .Any(rgo => rgo.GetComponent<LocalizedText>()?.key == "JEVILIB_PERSIST_BUNDLE");
+#pragma warning restore UNT0008 // Null propagation on Unity objects
+    }
+
+    /// <summary>
+    /// Informs JeviLib when a scene is unloaded, should that scene be a custom map.
+    /// </summary>
+    [MelonLoader.RegisterTypeInIl2Cpp]
+    public class MapUnloadWatcher : MonoBehaviour
+    {
+        /// <summary>
+        /// Used by IL2CPP to create a new instance of <see cref="MapUnloadWatcher"/>
+        /// </summary>
+        /// <param name="ptr"></param>
+        public MapUnloadWatcher(IntPtr ptr) : base(ptr) { }
+
+        private static AssetBundle currBundle;
+        internal static bool waitingToUnload;
+
+        void OnDestroy()
+        {
+#if DEBUG
+            JeviLib.Log("Custom map scene was unloaded! Unloading its bundle now!");
+#endif
+            currBundle.Unload(false);
+            currBundle = null;
+            waitingToUnload = false;
+        }
+
+        /// <summary>
+        /// Informs JeviLib of an intent to persist the map bundle until the scene unloads.
+        /// <para>Calling this avoids the few ms it takes to find a <see cref="LocalizedText"/> with the text "JEVILIB_PERSIST_BUNDLE".</para>
+        /// </summary>
+        public static void WaitToUnloadBundle()
+        {
+#if DEBUG
+            JeviLib.Log("The currently loaded map wishes to persist until the scene is unloaded.");
+#endif
+            waitingToUnload = true;
+            GameObject gobi = new GameObject("JeviLib Map Unload Watcher");
+            gobi.AddComponent<MapUnloadWatcher>();
+            currBundle = recentlyLoadedMap;
+            dontUnload = true;
+        }
+    }
+
 }
