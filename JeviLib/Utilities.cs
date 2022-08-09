@@ -334,6 +334,7 @@ public static class Utilities
     /// <para><see cref="Assembly.GetManifestResourceNames()"/></para>
     /// </param>
     /// <returns>Whether or not your module attempted setup. Will be false if "Resources/EntanglementSync.dll" doesn't exist or if Entanglement isn't installed.</returns>
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static bool LoadSyncAssembly(string rootFolderName = null)
     {
         Assembly caller = Assembly.GetCallingAssembly();
