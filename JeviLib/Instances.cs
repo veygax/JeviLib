@@ -1,8 +1,12 @@
-﻿using StressLevelZero.Rig;
-using StressLevelZero.VRMK;
+﻿using SLZ.Data;
+using SLZ.Marrow.Pool;
+using SLZ.Rig;
+using SLZ.Utilities;
+using SLZ.VRMK;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -30,10 +34,6 @@ public static class Instances
     /// A cached reference to <see cref="global::Player_Health"/>
     /// </summary>
     public static Player_Health Player_Health { get; internal set; }
-    /// <summary>
-    /// A cached reference to <see cref="PhysBody"/>
-    /// </summary>
-    public static PhysBody Player_PhysBody { get; internal set; }
 
 
 
@@ -46,8 +46,10 @@ public static class Instances
     /// </summary>
     public static Camera[] Cameras { get; internal set; }
 
-
-
+    /// <summary>
+    /// The currently operating Audio_Manager.
+    /// </summary>
+    public static Audio_Manager Audio_Manager { get; internal set; }
     /// <summary>
     /// The AudioMixerGroup corresponding to the Music mixer in the game's audio mixer settings.
     /// </summary>
@@ -68,12 +70,6 @@ public static class Instances
     public static AudioPlayer SFXPlayer { get; internal set; }
 
     /// <summary>
-    /// The active <see cref="Data_Manager"/> instance in the scene. Use this to reload the scene, or something.
-    /// <para>I'm not 100% sure why you'd need this, but I put it here because I already use it to find the audio mixers, so I might as well cache it for others to use.</para>
-    /// </summary>
-    public static Data_Manager DataManager { get; internal set; }
-
-    /// <summary>
     /// A Unity Object that should never be unloaded or destroyed.
     /// </summary>
     public static UnityEngine.Object NeverCancel { get; internal set; }
@@ -82,7 +78,12 @@ public static class Instances
     /// Holds a cache of all loaded namespaces and their corresponding assemblies.
     /// </summary>
     public static readonly Dictionary<string, Assembly> namespaceToAssembly = new();
+    
+    /// <summary>
+    /// A read-only collection of all pools.
+    /// </summary>
+    public static IReadOnlyList<AssetPool> AllPools => allPools.AsReadOnly(); //todo: patch assetpool ctor
 
-
+    internal static List<AssetPool> allPools = new();
     internal static List<IDictionary> instanceCachesToClear = new();
 }

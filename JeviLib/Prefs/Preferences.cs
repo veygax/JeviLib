@@ -1,9 +1,9 @@
-﻿using ModThatIsNotMod.BoneMenu;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 using UnityEngine;
 
 namespace Jevil.Prefs;
@@ -59,12 +59,17 @@ public sealed class Preferences : Attribute
         Type type = typeof(T);
         Preferences attrib = (Preferences)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(Preferences)) 
             ?? throw new InvalidOperationException($"Type {type.Namespace ?? "<Root>"}.{type.Name} doesn't have the [{nameof(Preferences)}] attribute! This is required to register preferences!");
+
         PreferencesColor pCol = (PreferencesColor)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(PreferencesColor));
-        return Register(type, attrib, pCol?.color ?? Color.white);
+        
+        PreferencesFile pFile = (PreferencesFile)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(PreferencesFile));
+        string qualifiedPath = Path.Combine(MelonLoader.MelonUtils.UserDataDirectory, pFile?.path ?? "MelonPreferences.cfg");
+        
+        return Register(type, attrib, pCol?.color ?? Color.white, qualifiedPath);
     }
 
-    private static PrefEntries Register(Type type, Preferences attribute, Color color)
+    private static PrefEntries Register(Type type, Preferences attribute, Color color, string filePath)
     {
-        return PrefsInternal.RegisterPreferences(type, attribute.categoryName, attribute.prefSubcategory, color);
+        return PrefsInternal.RegisterPreferences(type, attribute.categoryName, attribute.prefSubcategory, color, filePath);
     }
 }

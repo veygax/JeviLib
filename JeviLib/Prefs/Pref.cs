@@ -1,5 +1,4 @@
-﻿using ModThatIsNotMod.BoneMenu;
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Jevil.Prefs;
@@ -9,7 +8,8 @@ namespace Jevil.Prefs;
 /// <summary>
 /// Designates a static member (private or public) as a preference. The predefined value will be treated as the default and will be overridden by BoneMenu or MelonPreferences values.
 /// <para>Used for strings and enums.</para>
-/// <para>Can be used on methods to generate a <see cref="FunctionElement"/>.</para>
+/// todo: bonelib menu functionelement
+/// <para>Can be used on methods to generate a BoneLib menu function element when BoneLib has a menu implemented.</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
 public sealed class Pref : Attribute
@@ -39,8 +39,9 @@ public sealed class Pref : Attribute
 
     /// <summary>
     /// Declare a member as a preference with a description in MelonPreferences. Color defaults to white.
+    /// todo: add BoneLib menu support
     /// </summary>
     /// <param name="description">MelonPrefs description. Enums cannot have descriptions, as their descriptions will be used to display the names of the enum values. Functions will use this instead of the friendly-ified method name if this is present.</param>
-    /// <param name="boneMenuColor">The <see cref="MenuElement"/> color.</param>
+    /// <param name="boneMenuColor">The color of the BoneLib menu element.</param>
     public Pref(string description = "", UnityDefaultColor boneMenuColor = UnityDefaultColor.WHITE) { desc = description; color = PrefsInternal.EnumToColor(boneMenuColor); }
 }

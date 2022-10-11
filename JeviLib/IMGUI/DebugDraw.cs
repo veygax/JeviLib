@@ -41,8 +41,8 @@ public static class DebugDraw
     /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
     public static GUIToken TrackVariable<T>(string varName, GUIPosition position, Func<T> getter)
     {
-        Func<object> boxedGetter = () => getter;
-        GUIToken ret = new(varName + ": " + getter().ToString(), boxedGetter);
+        Func<object> boxedGetter = () => { return getter(); };
+        GUIToken ret = new(varName, boxedGetter);
 #if DEBUG
         ret.position = position;
         tokens.Add(ret);

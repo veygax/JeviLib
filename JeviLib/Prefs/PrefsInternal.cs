@@ -1,5 +1,4 @@
 ﻿using MelonLoader;
-using ModThatIsNotMod.BoneMenu;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,15 +11,18 @@ namespace Jevil.Prefs;
 
 internal static class PrefsInternal
 {
-    public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor);
+    public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor, string filePath) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor, filePath);
 
-    public static PrefEntries RegisterPreferences(Type type, string categoryName, bool prefSubcategory, Color categoryColor)
+    public static PrefEntries RegisterPreferences(Type type, string categoryName, bool prefSubcategory, Color categoryColor, string filePath)
     {
         MelonPreferences_Category mpCat = MelonPreferences.CreateCategory(categoryName);
-        mpCat.LoadFromFile(false); // actually get the values LOL (fucking christ end me)
-        MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
-        PrefEntries ret = new(mpCat, bmCat);
-        if (prefSubcategory) bmCat = bmCat.CreateSubCategory(Preferences.prefSubcategoryName, categoryColor);
+        mpCat.SetFilePath(filePath, false, false); // actually get the values
+        mpCat.LoadFromFile(false);
+        // todo: reimplement
+        //MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
+        //PrefEntries ret = new(mpCat, bmCat);
+        PrefEntries ret = new(mpCat);
+        //if (prefSubcategory) bmCat = bmCat.CreateSubCategory(Preferences.prefSubcategoryName, categoryColor);
 
 #if DEBUG
         var instanceFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
@@ -51,19 +53,19 @@ internal static class PrefsInternal
             {
                 var entry = SetEntry(mpCat, field, out string toSet, ep.desc);
                 field.SetValue(null, toSet);
-                bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                //todo bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(bool))
             {
                 var entry = SetEntry(mpCat, field, out bool toSet, ep.desc);
                 field.SetValue(null, toSet);
-                bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                //todo bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(Color))
             {
                 var entry = SetEntry(mpCat, field, out Color toSet, ep.desc);
                 field.SetValue(null, toSet);
-                bmCat.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                //todo bmCat.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType.IsEnum)
             {
@@ -84,7 +86,7 @@ internal static class PrefsInternal
                     entry.Value = dv.ToString();
                 }
                 field.SetValue(null, toSet);
-                bmCat.CreateEnumElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); });
+                //todo bmCat.CreateEnumElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); });
             }
 #if DEBUG
             else
@@ -120,13 +122,13 @@ internal static class PrefsInternal
             {
                 var entry = SetEntry(mpCat, field, out int toSet, $"{rp.low} to {rp.high}");
                 field.SetValue(null, toSet);
-                bmCat.CreateIntElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, (int)rp.inc, (int)rp.low, (int)rp.high);
+                //todo bmCat.CreateIntElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, (int)rp.inc, (int)rp.low, (int)rp.high);
             }
             else if (field.FieldType == typeof(float))
             {
                 var entry = SetEntry(mpCat, field, out float toSet, $"{rp.low} to {rp.high}");
                 field.SetValue(null, toSet);
-                bmCat.CreateFloatElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, rp.inc, rp.low, rp.high);
+                //todo bmCat.CreateFloatElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, rp.inc, rp.low, rp.high);
             }
 #if DEBUG
             else
@@ -176,7 +178,7 @@ internal static class PrefsInternal
 #if DEBUG
 
 #endif
-            bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+            //todo bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
 #if DEBUG
             JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
 #endif

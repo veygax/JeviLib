@@ -1,10 +1,4 @@
-﻿using Jevil.Patching;
-using Jevil.Tweening;
-using Jevil.IMGUI;
-using MelonLoader;
-using MelonLoader.Assertions;
-using ModThatIsNotMod;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,24 +7,18 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using BoneLib;
+using Jevil.IMGUI;
+using Jevil.Patching;
+using Jevil.Tweening;
+using MelonLoader;
+using MelonLoader.Assertions;
+using ModThatIsNotMod;
+using SLZ.Data;
+using SLZ.Utilities;
 using UnityEngine;
 
 namespace Jevil;
-
-internal static class JevilBuildInfo
-{
-    public const string Name = "JeviLib"; // Name of the Mod.  (MUST BE SET)
-    public const string Author = "extraes"; // Author of the Mod.  (Set as null if none)
-    public const string Company = null; // Company that made the Mod.  (Set as null if none)
-    public const string Version = "2.0.3"; // Version of the Mod.  (MUST BE SET)
-    public const string DownloadLink = "https://boneworks.thunderstore.io/package/extraes/JeviLib/"; // Download Link for the Mod.  (Set as null if none)
-    public const bool Debug
-#if DEBUG
-        = true;
-#else
-        = false;
-#endif
-}
 
 /// <summary>
 /// The JeviLib <see cref="MelonMod"/> class. There's not much of note here.
@@ -38,17 +26,14 @@ internal static class JevilBuildInfo
 public class JeviLib : MelonMod
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="JeviLib"/> class.
     /// https://cdn.discordapp.com/attachments/646885826776793099/976272724324401172/IMG_2559.jpg
     /// </summary>
     public JeviLib() : base() => instance = this;
     internal static JeviLib instance;  
+    internal readonly new Assembly Assembly = typeof(JeviLib).Assembly; // melonloader's favorite word is "Obsolete"
 
     internal static ConcurrentDictionary<string, ConcurrentBag<Assembly>> namespaceAssemblies = new();
-    /// <summary>
-    /// Tells whether the asynchronously built map of namespaces to assemblies is done being created.
-    /// <para><see cref="Utilities.GetTypeFromString(string, string)"/> will fail if this is <see langword="false"/>, but <see cref="Patching.Disable.TryFromName(string, string, string, string[])"/>, which relies on GetTypeFromString, will queue an action to run when the map is finished being built.</para>
-    /// </summary>
-    public static bool DoneMappingNamespacesToAssemblies { get; private set; }
     internal static Action onNamespaceAssembliesCompleted;
 
     static readonly ConcurrentQueue<string> toLog = new();
@@ -56,35 +41,50 @@ public class JeviLib : MelonMod
 
 
 #if DEBUG
+    private const int GuiGap = 5;
+    private const int GuiCornerDist = 20;
+
     private GameObject tweenTarget;
-    List<GUIToken> standardJevilTokens = new();
+    private List<GUIToken> standardJevilTokens = new();
 #endif
 
-#if DEBUG
-    const int GuiGap = 5;
-    const int GuiCornerDist = 20;
-#endif
+    /// <summary>
+    /// Gets a value indicating whether the asynchronously built map of namespaces to assemblies is done being created.
+    /// <para><see cref="Utilities.GetTypeFromString(string, string)"/> will fail if this is <see langword="false"/>, but <see cref="Patching.Disable.TryFromName(string, string, string, string[])"/>, which relies on GetTypeFromString, will queue an action to run when the map is finished being built.</para>
+    /// </summary>
+    public static bool DoneMappingNamespacesToAssemblies { get; private set; }
 
     /// <summary>
     /// https://media.discordapp.net/attachments/919014401187643435/958026151383691344/freeze-1.gif
     /// </summary>
-    public override void OnApplicationStart()
+    public override void OnInitializeMelon()
     {
         Stopwatch sw = Stopwatch.StartNew();
-
+        
 #if DEBUG
         Log("This version of " + nameof(JeviLib) + " has been built with the DEBUG compiler flag!");
         Log("Functionality will remain in tact for the most part, however there will be extra log points to warn you if there is anything worrying about your usage of the library.");
         Log("You should only be using this build if you create code mods, and not if you simply use mods. Do not rely on the extra checks in this build, or require the use of a debug build for your production code.");
 
-        standardJevilTokens.Add(DebugDraw.Button("Hide JeviLib tween debugger buttons", GUIPosition.TOP_RIGHT, ClearStandardTokens));
-        standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); }));
-        standardJevilTokens.Add(DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
-        standardJevilTokens.Add(DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
-        standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.One", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenLocalScale(Vector3.one, 1); }));
-        standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.Zero", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenLocalScale(Vector3.zero, 1); }));
-        standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
-        standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Hide JeviLib tween debugger buttons", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
+        this.standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.one, 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.Zero", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.zero, 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
+
+        try
+        {
+            Redirect.FromDelegate((Func<UnhollowerBaseLib.Il2CppStructArray<byte>, AssetBundle>)AssetBundle.LoadFromMemory, AssetBundle_Load_Start);
+            Hook.OntoDelegate((Func<UnhollowerBaseLib.Il2CppStructArray<byte>, AssetBundle>)AssetBundle.LoadFromMemory, AssetBundle_Load_End);
+        }
+        catch(Exception ex)
+        {
+            JeviLib.Error("ERR WHILE STARTING JEVILIB ASSETBUNDLE LOAD WATCHER ==> " + ex.ToString());
+        }
+        Application.lowMemory += new Action(NotifiedLowRAM);
 #endif
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
@@ -93,26 +93,16 @@ public class JeviLib : MelonMod
         GameObject.DontDestroyOnLoad(go);
         Instances.NeverCancel = go;
 
-        onNamespaceAssembliesCompleted += CMaps.FixUnload; // no longer dormant... the demon has been released
+        onNamespaceAssembliesCompleted += Ungovernable.Init;
         Spawning.Zombies.Init();
         Task.Run(LogFromQueue);
 
-        Task.Run(GetNamespaces);
+        Task.Run(this.GetNamespaces);
 
         sw.Stop();
-        LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
+        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
-#if DEBUG
-    private void ClearStandardTokens()
-    {
-        foreach (GUIToken token in standardJevilTokens)
-        {
-            DebugDraw.Dont(token);
-        }
-        standardJevilTokens.Clear();
-    }
-#endif
 
     /// <summary>
     /// Update things that are always changing, like Tweens.
@@ -143,19 +133,17 @@ public class JeviLib : MelonMod
 #endif
         // Grab the necessary references when the scene starts. 
         Instances.Player_BodyVitals =
-            GameObject.FindObjectOfType<StressLevelZero.VRMK.BodyVitals>();
+            GameObject.FindObjectOfType<SLZ.VRMK.BodyVitals>();
         Instances.Player_RigManager =
-            GameObject.FindObjectOfType<StressLevelZero.Rig.RigManager>();
+            GameObject.FindObjectOfType<SLZ.Rig.RigManager>();
         Instances.Player_Health =
             GameObject.FindObjectOfType<Player_Health>();
-        Instances.Player_PhysBody =
-            GameObject.FindObjectOfType<StressLevelZero.VRMK.PhysBody>();
-        Instances.DataManager =
-            GameObject.FindObjectOfType<Data_Manager>();
-        Instances.MusicMixer =
-            Instances.DataManager.audioManager.audioMixer.FindMatchingGroups("Music").First(n => n.name == "Music");
+        Instances.Audio_Manager =
+            GameObject.FindObjectOfType<Audio_Manager>();
+        Instances.MusicMixer = //todo: get mixer names from runtime game
+            Instances.Audio_Manager.audioMixer.FindMatchingGroups("Music").First();
         Instances.SFXMixer =
-            Instances.DataManager.audioManager.audioMixer.FindMatchingGroups("SFX").First();
+            Instances.Audio_Manager.audioMixer.FindMatchingGroups("SFX").First();
         // Separate cameras because it's better this way, I think. It's more distinguishable even if it requires two lines to keep the two "in sync"
         Instances.SpectatorCam =
             GameObject.Find("[RigManager (Default Brett)]/[SkeletonRig (GameWorld Brett)]/Head/FollowCamera").GetComponent<Camera>();
@@ -213,16 +201,13 @@ public class JeviLib : MelonMod
             IEnumerable<GUIToken> bottomLeft = DebugDraw.tokens.Where(t => t.position == GUIPosition.BOTTOM_LEFT);
             IEnumerable<GUIToken> bottomRight = DebugDraw.tokens.Where(t => t.position == GUIPosition.BOTTOM_RIGHT);
 
-            //Log($"TL: {topLeft.Count()}, TR: {topRight.Count()}, BL: {bottomLeft.Count()}, BR: {bottomRight.Count()}");
-
             // Draw top left
             int xStart = GuiCornerDist;
             int yStart = GuiCornerDist;
             foreach (GUIToken token in topLeft)
             {
                 Rect rekt = new(xStart, yStart, token.width, token.height);
-                //Log($"Drawing {token.txt} at {rekt.x}, {rekt.y}");
-                DrawToken(rekt, token);
+                this.DrawToken(rekt, token);
                 yStart += token.height + GuiGap;
             }
 
@@ -232,8 +217,7 @@ public class JeviLib : MelonMod
             foreach (GUIToken token in topRight)
             {
                 Rect rekt = new(xStart - token.width, yStart, token.width, token.height);
-                //Log($"Drawing {token.txt} at {rekt.x}, {rekt.y}");
-                DrawToken(rekt, token);
+                this.DrawToken(rekt, token);
                 yStart += token.height + GuiGap;
             }
 
@@ -243,7 +227,7 @@ public class JeviLib : MelonMod
             foreach (GUIToken token in bottomLeft)
             {
                 Rect rekt = new(xStart, yStart - token.height, token.width, token.height);
-                DrawToken(rekt, token);
+                this.DrawToken(rekt, token);
                 yStart -= token.height + GuiGap;
             }
 
@@ -253,7 +237,7 @@ public class JeviLib : MelonMod
             foreach (GUIToken token in bottomRight)
             {
                 Rect rekt = new(xStart - token.width, yStart - token.height, token.width, token.height);
-                DrawToken(rekt, token);
+                this.DrawToken(rekt, token);
                 yStart -= token.height + GuiGap;
             }
         }
@@ -306,7 +290,7 @@ public class JeviLib : MelonMod
 
         for (int i = 0; i < threads.Length; i++)
         {
-            Thread dictThread = new(PopulateDictionary_ThreadStart)
+            Thread dictThread = new(this.PopulateDictionary_ThreadStart)
             {
                 IsBackground = true
             };
@@ -325,7 +309,7 @@ public class JeviLib : MelonMod
         onNamespaceAssembliesCompleted.InvokeSafeParallel();
     }
 
-    private void PopulateDictionary_ThreadStart(object obj) => PopulateDictionary((Assembly[])obj);
+    private void PopulateDictionary_ThreadStart(object obj) => this.PopulateDictionary((Assembly[])obj);
 
     private void PopulateDictionary(Assembly[] section)
     {
@@ -404,8 +388,9 @@ public class JeviLib : MelonMod
     }
 
     // these *will* add execution time to every call to any melonmod logger, but given the fact that all they do is set a boolean, i think im fine
-    static void LogPre() => somethingIsLogging = true;
-    static void LogPost() => somethingIsLogging = false;
+    private static void LogPre() => somethingIsLogging = true;
+
+    private static void LogPost() => somethingIsLogging = false;
 
     #region MelonLogger replacements
 
@@ -418,5 +403,38 @@ public class JeviLib : MelonMod
 
     #endregion
 
+    /// <summary>
+    /// Enqueues a statement to be logged when the MelonLoader console window is free.
+    /// <para>Intended to be used off the main thread.</para>
+    /// </summary>
+    /// <param name="str">The string to be logged.</param>
     internal static void QueueLog(string str) => toLog.Enqueue(str);
+
+#if DEBUG
+    private void ClearStandardTokens()
+    {
+        foreach (GUIToken token in this.standardJevilTokens)
+        {
+            DebugDraw.Dont(token);
+        }
+
+        this.standardJevilTokens.Clear();
+    }
+
+    private void NotifiedLowRAM()
+    {
+        JeviLib.Warn("BONEWORKS has been notified that your system has very little free RAM left! Double check that! Consider uninstalling some items!");
+    }
+
+    private float timeStart;
+    private void AssetBundle_Load_Start()
+    {
+        timeStart = Time.realtimeSinceStartup;
+    }
+
+    private void AssetBundle_Load_End(AssetBundle ab)
+    {
+        JeviLib.Log("Assetbundle " + ab.name + " took " + timeStart.ToString("2n") + "s to load");
+    }
+#endif
 }

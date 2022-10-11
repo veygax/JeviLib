@@ -43,6 +43,7 @@ public sealed class GUIToken
 #if DEBUG
         type = GUIType.TRACKER;
         this.getter = call;
+        this.txtAlt = text;
         SetText(text);
 #endif
     }
@@ -76,7 +77,7 @@ public sealed class GUIToken
 #if DEBUG
         if (text == txt) return;
         txt = text;
-        width = text.Length * 7 + 15;
+        width = text.Length * 8 + 15;
 #endif
     }
 }

@@ -1,13 +1,17 @@
-﻿using ModThatIsNotMod.Nullables;
+﻿using BoneLib.Nullables;
 using StressLevelZero;
-using StressLevelZero.Combat;
-using StressLevelZero.Pool;
+using SLZ.Combat;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using SLZ.Marrow.Data;
+using Harmony;
+using SLZ;
+using SLZ.Marrow.Pool;
+using ModThatIsNotMod.Nullables;
 
 namespace Jevil.Spawning;
 
@@ -16,13 +20,13 @@ namespace Jevil.Spawning;
 /// </summary>
 public static class Ammo
 {
-    static Dictionary<Weight, Pool> ammoPools = new Dictionary<Weight, Pool>();
+    static readonly Dictionary<Weight, AssetPool> weightPools = new(3);
 
     internal static void Init()
     {
-        ammoPools.Clear();
-        ammoPools[Weight.LIGHT] = PoolManager.GetPool("Ammo Box Small 2500");
-        ammoPools[Weight.MEDIUM] = PoolManager.GetPool("Ammo Box Medium 2500");
+        weightPools[Weight.LIGHT] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_LIGHT);
+        weightPools[Weight.MEDIUM] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_MEDIUM);
+        weightPools[Weight.HEAVY] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_HEAVY);
     }
 
     /// <summary>
@@ -44,14 +48,9 @@ public static class Ammo
     /// <returns>An inactive spawned ammo box.</returns>
     public static GameObject Spawn(Weight ammoWgt, int ammoCount, Vector3 pos, Quaternion rot)
     {
-#if DEBUG
-        if (ammoWgt == Weight.HEAVY) 
-            JeviLib.Warn("Cannot spawn Heavy ammo, JeviLib does not grab the pool for it! This operation will throw a KeyNotFoundException!");
-#endif
-        Pool pool = ammoPools[ammoWgt];
+        if (!weightPools.TryGetValue(ammoWgt, out var pool) || pool == null) Init(); // yep
         
-        //GameObject spawnedAmmo = pool.InstantiatePoolee(pos, rot).gameObject; changed b/c instantiates new gameobject (no way fr?)
-        GameObject spawnedAmmo = pool.Spawn(pos, rot, null, false);
+        GameObject spawnedAmmo = weightPools[ammoWgt].Spawn(pos, rot, null, false).GetAwaiter().GetResult().gameObject;
         AmmoPickup pickup = spawnedAmmo.GetComponentInChildren<AmmoPickup>();
         pickup.ammoCount = ammoCount;
         return spawnedAmmo;

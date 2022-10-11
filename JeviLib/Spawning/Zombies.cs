@@ -1,14 +1,17 @@
 ﻿using MelonLoader.Assertions;
 using ModThatIsNotMod.Nullables;
 using PuppetMasta;
-using StressLevelZero.AI;
-using StressLevelZero.Pool;
+using BoneLib.Nullables;
+using SLZ.AI;
+using SLZ.Marrow.Pool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using SLZ.Marrow.Data;
+using SLZ.Marrow.Warehouse;
 
 namespace Jevil.Spawning;
 
@@ -18,7 +21,7 @@ namespace Jevil.Spawning;
 /// </summary>
 public static class Zombies
 {
-    private static Pool zombiePool;
+    static AssetPool zombiePool;
     static TriggerRefProxy playerProxy;
     static readonly Dictionary<ZombieType, BaseEnemyConfig> zombieConfigs = new(Enum.GetValues(typeof(ZombieType)).Length);
 
@@ -35,13 +38,13 @@ public static class Zombies
         foreach (string path in bundle.GetAllAssetNames()) JeviLib.Log(" - " + path);
 #endif
 
-        zombieConfigs.Add(ZombieType.FAST_NOTHROW,      bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_fast_nothrow.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.FAST_NOTHROW_TANK, bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_fast_nothrow_Tank.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.FAST_THROW,        bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_fast_throw.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.MED_NOTHROW,       bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_fast_nothrow.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.MED_THROW,         bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_med_nothrow.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.SLOW_THROW,        bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_slow_throw.asset").Cast<BaseEnemyConfig>());
-        zombieConfigs.Add(ZombieType.SLOW_THROW_TANK,   bundle.LoadAsset<BaseEnemyConfig>("assets/export/enemyconfigs/earlyexit_slow_throw_tank.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.FAST_NOTHROW,      bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_fast_nothrow.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.FAST_NOTHROW_TANK, bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_fast_nothrow_Tank.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.FAST_THROW,        bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_fast_throw.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.MED_NOTHROW,       bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_fast_nothrow.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.MED_THROW,         bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_med_nothrow.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.SLOW_THROW,        bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_slow_throw.asset").Cast<BaseEnemyConfig>());
+        zombieConfigs.Add(ZombieType.SLOW_THROW_TANK,   bundle.LoadAsset("assets/export/enemyconfigs/earlyexit_slow_throw_tank.asset").Cast<BaseEnemyConfig>());
 
         foreach (BaseEnemyConfig conf in zombieConfigs.Values)
         {
@@ -76,8 +79,8 @@ public static class Zombies
     /// <returns>The inactive zombie's root gameobject.</returns>
     public static GameObject Spawn(Vector3 pos, Quaternion rot, ZombieType zt, bool aggro)
     {
-        if (zombiePool == null) 
-            zombiePool = GameObject.FindObjectsOfType<Pool>().FirstOrDefault(p => p.name == "pool - Ford Early Exit Headset");
+        if (zombiePool == null)
+            zombiePool = Barcodes.ToAssetPool(JevilBarcode.EARLY_EXIT_ZOMBIE);
         if (playerProxy.INOC()) 
             playerProxy = GameObject.FindObjectsOfType<TriggerRefProxy>().FirstOrDefault(t => t.transform.IsChildOfRigManager());
 #if DEBUG
@@ -86,7 +89,8 @@ public static class Zombies
         BaseEnemyConfig conf = zombieConfigs[zt];
 
         //GameObject spawned = zombiePool.InstantiatePoolee(pos, rot).gameObject; changed b/c instantiates new gameobject (no way fr?)
-        GameObject spawned = zombiePool.Spawn(pos, rot, null, false);
+        
+        GameObject spawned = zombiePool.Spawn(pos, rot, null, false).GetAwaiter().GetResult().gameObject;
         AIBrain braiiinnnsssss = Instances<AIBrain>.Get(spawned);
         
         // do 2 of em because im not sure what the difference is lol
@@ -123,7 +127,7 @@ public static class Zombies
         hs.maxStunSeconds = maxStunSeconds ?? hs.maxStunSeconds;
         clonefig.healthSettings = hs;
 
-        GameObject spawned = NullableMethodExtensions.Spawn(zombiePool, pos, rot, null, null);
+        GameObject spawned = zombiePool.Spawn(pos, rot, null, null).GetAwaiter().GetResult().gameObject; // uhhhh.... ?? i dont know man. unitask moment i guess
         AIBrain brainiac = Instances<AIBrain>.Get(spawned);
 
         brainiac.SetBaseConfig(clonefig);

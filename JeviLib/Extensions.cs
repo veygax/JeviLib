@@ -400,7 +400,7 @@ public static class Extensions
     /// <typeparam name="T">Any type.</typeparam>
     /// <param name="sequence"></param>
     /// <returns></returns>
-    public static IEnumerable<T> NoNull<T>(IEnumerable<T> sequence)
+    public static IEnumerable<T> NoNull<T>(this IEnumerable<T> sequence)
     {
         return sequence.Where(o => o != null);
     }
@@ -490,16 +490,6 @@ public static class Extensions
         Type type = mb.DeclaringType;
         return type.GetMethod(mb.Name, Const.AllBindingFlags);
     } 
-
-    /// <summary>
-    /// Waits for a <see cref="NotificationData"/> to disappear.
-    /// </summary>
-    /// <param name="notif">Any notification data</param>
-    /// <returns>A yield awaitable enumerator that waits for the notification to finish.</returns>
-    public static IEnumerator WaitForEnd(this NotificationData notif)
-    {
-        while (notif.timeRemaining > 0) yield return null;
-    }
 
     /// <summary>
     /// <b>I</b>s <b><see langword="N"/></b><see langword="ull"/> <b>O</b>r <b>C</b>ollected

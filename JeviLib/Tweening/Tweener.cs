@@ -36,16 +36,23 @@ public static class Tweener
 #if DEBUG
                 JeviLib.Log($"Removing {tween.name}; It is done.");
 #endif
-                tween.FinishInternal();
                 tweens.RemoveAt(i);
+                tween.FinishInternal();
                 continue;
             }
 
-            float increment;
-            if (tween.IsRealtime) increment = Time.unscaledDeltaTime;
-            else increment = Time.deltaTime;
-
-            tween.UpdateInternal(increment);
+            float increment = tween.IsRealtime ? Time.unscaledDeltaTime : Time.deltaTime;
+            
+            try
+            {
+                tween.UpdateInternal(increment);
+            }
+            catch(Exception ex)
+            {
+                JeviLib.Log($"Removing {tween.name}; There was an exception whilst updating it.");
+                JeviLib.Log($"Tween exception: {ex}", ConsoleColor.DarkRed);
+                tweens.RemoveAt(i);
+            }
         }
     }
 
