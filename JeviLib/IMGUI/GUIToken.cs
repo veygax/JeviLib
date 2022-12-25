@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Jevil.IMGUI;
 
@@ -77,7 +78,9 @@ public sealed class GUIToken
 #if DEBUG
         if (text == txt) return;
         txt = text;
-        width = text.Length * 8 + 15;
+        //width = text.Length * 8 + 15;
+        GUIStyle.none.CalcMinMaxWidth(new GUIContent(text), out float minW, out float maxW);
+        width = Mathf.CeilToInt(maxW + 10);
 #endif
     }
 }

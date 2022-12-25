@@ -1,7 +1,7 @@
 ﻿using BoneLib;
+using BoneLib.RandomShit;
 using HarmonyLib;
 using MelonLoader;
-using ModThatIsNotMod;
 using PuppetMasta;
 using SLZ.Interaction;
 using SLZ.Marrow.Pool;
@@ -10,6 +10,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -36,7 +37,7 @@ public static class Utilities
     /// <returns>Whether Boneworks_Oculus_Windows64.exe exists in the application path.</returns>
     public static bool IsSteamVersion()
     {
-        return Application.dataPath.EndsWith("BONELAB_Steam_Windows64_Data");
+        return UnityEngine.Application.dataPath.EndsWith("BONELAB_Steam_Windows64_Data");
     }
 
     /// <summary>
@@ -69,18 +70,15 @@ public static class Utilities
     }
 
     /// <summary>
-    /// Spawns a <see cref="ModThatIsNotMod"/> Ad and then moves it in front of, and makes it face, the player.
+    /// Spawns a <see cref="BoneLib"/> Ad and then moves it in front of, and makes it face, the player.
     /// </summary>
     /// <param name="str">The text to be displayed on the Ad.</param>
     /// <returns></returns>
     public static GameObject SpawnAd(string str)
     {
-        throw new NotSupportedException("BoneLib does not yet have MTINM's AdManager class.");
-        //todo: retarget bonelib
-
-        //GameObject ad = ModThatIsNotMod.RandomShit.AdManager.CreateNewAd(str);
-        //MoveAndFacePlayer(ad);
-        //return ad;
+        GameObject ad = PopupBoxManager.CreateNewPopupBox(str);
+        MoveAndFacePlayer(ad);
+        return ad;
     }
 
     /// <summary>
@@ -174,7 +172,7 @@ public static class Utilities
     /// <param name="obj">The object to move and rotate</param>
     public static void MoveAndFacePlayer(GameObject obj)
     {
-        Transform phead = Player.GetPlayerHead().transform;
+        Transform phead = Player.playerHead;
         Vector3 position = phead.position + phead.forward.normalized * 2;
         Quaternion rotation = Quaternion.LookRotation(obj.transform.position - phead.position, Vector3.up);
         obj.transform.SetPositionAndRotation(position, rotation);
@@ -619,10 +617,26 @@ public static class Utilities
 #if DEBUG
         if (minf == null)
         {
-            JeviLib.Log($"The type {namezpaze}.{clazz} (from assembly {type.Assembly.GetName().Name}) doesn't have a method named {method} {(paramTypes == null ? "" : $"that matches the given {paramTypes.Length} parameter(s).")}");
+            string extraText = paramTypes == null ? "" : $"that matches the given {paramTypes.Length} parameter(s).";
+            JeviLib.Log($"The type {namezpaze}.{clazz} (from assembly {type.Assembly.GetName().Name}) doesn't have a method named {method} {extraText}");
         }
 #endif
 
         return minf;
     }
+
+    /// <summary>
+    /// Forces the caller to return to the main (Unity) thread.
+    /// </summary>
+    public static void ReturnToMainThread()
+    {
+        Instances.NeverCancel.EnsureRunningOnMainThread();
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the current platform is Ocul- I mean Faceb- I mean <i>META</i> Quest.
+    /// </summary>
+    /// <returns>If <see cref="MelonUtils.CurrentPlatform"/> is <c>3</c>.</returns>
+    public static bool IsPlatformQuest()
+        => MelonUtils.CurrentPlatform == (MelonPlatformAttribute.CompatiblePlatforms)3;
 }

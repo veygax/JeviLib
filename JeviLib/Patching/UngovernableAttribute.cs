@@ -7,16 +7,22 @@ using System.Reflection;
 
 namespace Jevil.Patching;
 
+// todo: do this
 /// <summary>
-/// Used to identify an assembly that JeviLib should handle in some special way. Undecided what it'll be for yet.
-/// <para>If <see cref="UngovernableAttribute"/> is found on the registering assembly, all its classes will be injected with FieldInjector instead of ClassInjector</para>
+/// Used to identify an assembly that JeviLib should autopatch with a transpiler.
+/// <para>If <see cref="UngovernableAttribute"/> is found on a loaded assembly, all its <see langword="async"/> methods will have all <see langword="await"/>s suffixed with a call to <see cref="Utilities.ReturnToMainThread"/></para>
 /// </summary>
-/// <remarks>This will fall back to ClassInjector is FieldInjector isn't found.</remarks>
+/// <remarks></remarks>
 [AttributeUsage(AttributeTargets.Assembly)]
 public class UngovernableAttribute : Attribute 
 {
+    internal readonly UngovernableType ungovernableType;
     /// <summary>
-    /// If <see langword="false"/>, JeviLib will only inject serialization for classes deriving from <see cref="UnityEngine.MonoBehaviour"/>.
+    /// Makes an assembly ungovernable.
     /// </summary>
-    public bool alsoInjectScriptableObjects;
+    /// <param name="whyYouAreUngovernable">Specifies how an ungovernable assembly will have parts of it be modified.</param>
+    public UngovernableAttribute(UngovernableType whyYouAreUngovernable = UngovernableType.ALL)
+    {
+        ungovernableType = whyYouAreUngovernable;
+    }
 }

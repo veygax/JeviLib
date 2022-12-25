@@ -1,11 +1,14 @@
-﻿using SLZ.Marrow.Pool;
+﻿using SLZ.Marrow.Data;
+using SLZ.Marrow.Pool;
 using SLZ.Marrow.Warehouse;
+using BoneLib.Nullables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Jevil.Spawning;
 
@@ -16,7 +19,10 @@ public static class Barcodes
 {
     static Dictionary<JevilBarcode, string> enumToBarcode = new(Barcodes_Array.value.Length);
     static Dictionary<string, JevilBarcode> barcodeToEnum = new(Barcodes_Array.value.Length);
-    static void Init()
+
+    static Dictionary<string, AssetPool> barcodeStrToPool = new();
+
+    internal static void Init()
     {
 #if DEBUG
         Stopwatch sw = Stopwatch.StartNew();
@@ -27,7 +33,6 @@ public static class Barcodes
             enumToBarcode[tuple.jcode] = tuple.code;
             barcodeToEnum[tuple.code] = tuple.jcode;
         }
-
 #if DEBUG
         sw.Stop();
         JeviLib.Log("Populated Barcodes to JevilBarcodes in " + sw.ElapsedMilliseconds + "ms.");
@@ -58,19 +63,82 @@ public static class Barcodes
     /// <summary>
     /// Retrieves the AssetPool for a given asset.
     /// </summary>
-    /// <param name="jBarcode"></param>
-    /// <returns></returns>
+    /// <param name="jBarcode">The JeviLib barcode enum.</param>
+    /// <returns>An AssetPool if it exists, or <see langword="null"/> if the pools are not yet initialized or the pool wasn't found.</returns>
     public static AssetPool ToAssetPool(JevilBarcode jBarcode)
     {
+        if (AssetSpawner._instance == null) return null;
+
         string barcode = ToBarcodeString(jBarcode);
+        return ToAssetPool(barcode);
+    }
+
+    /// <summary>
+    /// Converts a barcode string to an asset pool.
+    /// </summary>
+    /// <param name="barcodeId">The barcode string of the asset you want to get the AssetPool of.</param>
+    /// <returns>An <see cref="AssetPool"/> with the barcode provided.</returns>
+    public static AssetPool ToAssetPool(string barcodeId)
+    {
+        if (barcodeStrToPool.TryGetValue(barcodeId, out AssetPool assetPool)) return assetPool;
+        // Implicit else (if ^ returns true, v will not run)
+
+        PopulateDictionary();
+
+        // probably shit code
+        if (barcodeStrToPool.TryGetValue(barcodeId, out assetPool)) return assetPool;
+
+#if DEBUG
+        JeviLib.Warn($"Asset Barcode '{barcodeId}' is not found in BONELAB's AssetSpawner instance!");
+#endif
+        return assetPool;   
+    }
+
+    /// <summary>
+    /// Converts a barcode for a spawnable into an actual <see cref="Spawnable"/> instance.
+    /// <para>This code originates from ordo#2606. Thanks, ordo!</para>
+    /// </summary>
+    /// <param name="barcode">A spawnable crate's barcode.</param>
+    /// <returns>An instance of a <see cref="Spawnable"/>, from a SpawnableCrateReference</returns>
+    /// <remarks>Original code: https://discord.com/channels/563139253542846474/724595991675797554/1030596129424953384</remarks>
+    public static Spawnable ToSpawnable(string barcode)
+    {
+        SpawnableCrateReference reference = new(barcode);
+        Spawnable spawnable = new()
+        {
+            crateRef = reference
+        };
+        
+        AssetSpawner.Register(spawnable);
+        return spawnable;
+    }
+
+    /// <summary>
+    /// Converts a <see cref="JevilBarcode"/> to a <see cref="Spawnable"/>.
+    /// </summary>
+    /// <param name="jevilBarcode">A <see cref="JevilBarcode"/>. It is assumed to be the <see cref="JevilBarcode"/> of a <see cref="Spawnable"/>.</param>
+    /// <returns>A spawnable, as long as no exception was thrown.</returns>
+    public static Spawnable ToSpawnable(JevilBarcode jevilBarcode)
+        => ToSpawnable(ToBarcodeString(jevilBarcode));
+
+    /// <summary>
+    /// Spawns something using <see cref="ToSpawnable(JevilBarcode)"/>.
+    /// </summary>
+    /// <param name="barcodeToSpawn">A <see cref="JevilBarcode"/> corresponding to a spawnable.</param>
+    /// <param name="pos">The worldspace position to spawn the object at.</param>
+    /// <param name="rot">The worldspace rotation to spawn the object with.</param>
+    public static void Spawn(JevilBarcode barcodeToSpawn, Vector3 pos, Quaternion rot)
+    {
+        Spawnable spawnable = ToSpawnable(barcodeToSpawn);
+        AssetSpawner.Spawn(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+    }
+
+    private static void PopulateDictionary()
+    {
         foreach (var kvp in AssetSpawner._instance._barcodeToPool)
         {
-            if (kvp.key._id == barcode) return kvp.value;
+            barcodeStrToPool[kvp.key._id] = kvp.value;
         }
-#if DEBUG
-        JeviLib.Warn($"The built-in barcode {jBarcode} (SLZ Barcode: '{barcode}') was not found in the AssetSpawner instance!");
-#endif
-        return null;
     }
 }
 

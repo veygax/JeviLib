@@ -53,6 +53,10 @@
     <Reference Include="0Harmony">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\0Harmony.dll</HintPath>
     </Reference>
+    <Reference Include="Mono.Cecil, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Mono.Cecil.dll</HintPath>
+    </Reference>
     <Reference Include="SLZ.Marrow">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\SLZ.Marrow.dll</HintPath>
     </Reference>
@@ -128,8 +132,11 @@
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="JevilBuildInfo.cs" />
     <Compile Include="JeviLib.cs" />
+    <Compile Include="Patching\FixSocketAsyncEventArgs.cs" />
     <Compile Include="Patching\Ungovernable.cs" />
     <Compile Include="Patching\UngovernableAttribute.cs" />
+    <Compile Include="Patching\UngovernableType.cs" />
+    <Compile Include="Prefs\PreferencesRegisterChildren.cs" />
     <Compile Include="Prefs\PreferencesFile.cs" />
     <Compile Include="Spawning\Barcodes.cs" />
     <Compile Include="Spawning\JevilBarcode.cs" />
@@ -174,6 +181,8 @@
     <Compile Include="Utilities.cs" />
     <Compile Include="Waiting\CancelCallToken.cs" />
     <Compile Include="Waiting\CallDelayed.cs" />
+    <Compile Include="Waiting\WaitSecondsReal.cs" />
+    <Compile Include="Waiting\WaitSeconds.cs" />
     <Compile Include="Waiting\WaitForSceneInit.cs" />
     <Compile Include="Waiting\WaitDuring.cs" />
     <Compile Include="Waiting\WaitFor.cs" />

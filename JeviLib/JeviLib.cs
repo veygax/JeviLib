@@ -8,15 +8,17 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BoneLib;
+using BoneLib.RandomShit;
 using Jevil.IMGUI;
 using Jevil.Patching;
 using Jevil.Tweening;
 using MelonLoader;
 using MelonLoader.Assertions;
-using ModThatIsNotMod;
 using SLZ.Data;
+using SLZ.Marrow.Pool;
 using SLZ.Utilities;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Jevil;
 
@@ -41,8 +43,8 @@ public class JeviLib : MelonMod
 
 
 #if DEBUG
-    private const int GuiGap = 5;
-    private const int GuiCornerDist = 20;
+    private readonly int GuiGap = Utilities.IsPlatformQuest() ? 15 : 5;
+    private readonly int GuiCornerDist = Utilities.IsPlatformQuest() ? 350 : 20;
 
     private GameObject tweenTarget;
     private List<GUIToken> standardJevilTokens = new();
@@ -57,7 +59,7 @@ public class JeviLib : MelonMod
     /// <summary>
     /// https://media.discordapp.net/attachments/919014401187643435/958026151383691344/freeze-1.gif
     /// </summary>
-    public override void OnInitializeMelon()
+    public override void OnEarlyInitializeMelon()
     {
         Stopwatch sw = Stopwatch.StartNew();
         
@@ -75,34 +77,53 @@ public class JeviLib : MelonMod
         this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
 
-        try
-        {
-            Redirect.FromDelegate((Func<UnhollowerBaseLib.Il2CppStructArray<byte>, AssetBundle>)AssetBundle.LoadFromMemory, AssetBundle_Load_Start);
-            Hook.OntoDelegate((Func<UnhollowerBaseLib.Il2CppStructArray<byte>, AssetBundle>)AssetBundle.LoadFromMemory, AssetBundle_Load_End);
-        }
-        catch(Exception ex)
-        {
-            JeviLib.Error("ERR WHILE STARTING JEVILIB ASSETBUNDLE LOAD WATCHER ==> " + ex.ToString());
-        }
-        Application.lowMemory += new Action(NotifiedLowRAM);
+        this.standardJevilTokens.Add(DebugDraw.Button("PBM.CNSPU", GUIPosition.TOP_RIGHT, () => { PopupBoxManager.CreateNewShibePopup(); }));
+
+        Stopwatch patchTimeSW = Stopwatch.StartNew();
 #endif
+
+        HarmonyInstance.PatchAll();
+
+        Spawning.Barcodes.Init();
+
+        MethodBase[] ctors = typeof(AssetPool).GetConstructors();
+
+        foreach (MethodBase mb in ctors)
+            Hook.OntoMethod(mb, CacheAssetPool);
+#if DEBUG
+        patchTimeSW.Stop();
+        Log($"Took {patchTimeSW.ElapsedMilliseconds}ms to find & patch {ctors.Length} methods (constructors)", ConsoleColor.DarkGray);
+#endif
+
+        Ungovernable.Init();
+        foreach (Assembly asm in MelonMod.RegisteredMelons.Select(mm => mm.GetType().Assembly))
+        {
+            UngovernableAttribute attr = asm.GetCustomAttribute<UngovernableAttribute>();
+            if (attr != null) Ungovernable.TranspileAssembly(asm, attr.ungovernableType);
+        }
+        Spawning.Zombies.Init();
+        Task.Run(LogFromQueue);
+
+        Task.Run(this.GetNamespaces);
+
+        Hooking.OnLevelInitialized += (li) => { OnSceneWasInitialized(-1, li.barcode); };
+
+        sw.Stop();
+        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
+    }
+
+    /// <summary>
+    /// Initializes 
+    /// </summary>
+    public override void OnInitializeMelon()
+    {
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
         go.AddComponent<NeverCollect>();
         go.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
         GameObject.DontDestroyOnLoad(go);
         Instances.NeverCancel = go;
-
-        onNamespaceAssembliesCompleted += Ungovernable.Init;
-        Spawning.Zombies.Init();
-        Task.Run(LogFromQueue);
-
-        Task.Run(this.GetNamespaces);
-
-        sw.Stop();
-        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
-
 
     /// <summary>
     /// Update things that are always changing, like Tweens.
@@ -112,14 +133,26 @@ public class JeviLib : MelonMod
         Tweener.UpdateAll();
     }
 
+    ///// <summary>
+    ///// kjr
+    ///// </summary>
+    ///// <param name="buildIndex"></param>
+    ///// <param name="sceneName"></param>
+    //public override void OnSceneWasLoaded(int buildIndex, string sceneName)
+    //{
+    //    Log($"OSWL CALLED, PASSING TO OSWI: PARAMS: IDX={buildIndex}, NAME={sceneName}");
+    //    OnSceneWasInitialized(buildIndex, sceneName);
+    //}
+
     /// <summary>
     /// Update references in <see cref="Instances"/>
     /// </summary>
-    /// <param name="buildIndex">idk bro ask melonloader</param>
-    /// <param name="sceneName">idk bro ask melonloader</param>
     public override void OnSceneWasInitialized(int buildIndex, string sceneName)
     {
-        Waiting.WaitForSceneInit.currSceneIdx = buildIndex;
+        Log($"OSWI CALLED: PARAMS: IDX={buildIndex}, NAME={sceneName}");
+        if (!Instances.Player_RigManager.INOC()) return;
+
+        Waiting.WaitForSceneInit.currSceneIdx = SceneManager.GetActiveScene().buildIndex;
         foreach (IDictionary item in Instances.instanceCachesToClear)
         {
             item.Clear();
@@ -134,8 +167,12 @@ public class JeviLib : MelonMod
         // Grab the necessary references when the scene starts. 
         Instances.Player_BodyVitals =
             GameObject.FindObjectOfType<SLZ.VRMK.BodyVitals>();
+        if (Instances.Player_BodyVitals.INOC())
+            return;
         Instances.Player_RigManager =
             GameObject.FindObjectOfType<SLZ.Rig.RigManager>();
+        Instances.Player_PhysicsRig =
+            GameObject.FindObjectOfType<SLZ.Rig.PhysicsRig>();
         Instances.Player_Health =
             GameObject.FindObjectOfType<Player_Health>();
         Instances.Audio_Manager =
@@ -145,12 +182,12 @@ public class JeviLib : MelonMod
         Instances.SFXMixer =
             Instances.Audio_Manager.audioMixer.FindMatchingGroups("SFX").First();
         // Separate cameras because it's better this way, I think. It's more distinguishable even if it requires two lines to keep the two "in sync"
-        Instances.SpectatorCam =
-            GameObject.Find("[RigManager (Default Brett)]/[SkeletonRig (GameWorld Brett)]/Head/FollowCamera").GetComponent<Camera>();
         Instances.Cameras =
-            GameObject.FindObjectsOfType<Camera>().Where(c => c.name.StartsWith("Camera (")).ToArray();
+            GameObject.FindObjectsOfType<Camera>().Where(c => c.transform.IsChildOfRigManager()).ToArray();
+        Instances.SpectatorCam =
+            Instances.Cameras.First(c => c.name == "Spectator Camera");
 
-        GameObject pHead = Player.GetPlayerHead();
+        Transform pHead = Player.playerHead;
 
         GameObject musicPlayer = new("JeviLib Music Player");
         musicPlayer.transform.parent = pHead.transform;
@@ -177,6 +214,11 @@ public class JeviLib : MelonMod
 #endif
     }
 
+    static void CacheAssetPool(AssetPool newPool)
+    {
+        Instances.allPools.Add(newPool);
+    }
+
 #if DEBUG
     /// <summary>
     /// Draw <see cref="GUIToken"/>s from <see cref="DebugDraw"/>.
@@ -185,65 +227,113 @@ public class JeviLib : MelonMod
     {
         try
         {
-            foreach (GUIToken tkn in DebugDraw.tokens)
+            List<GUIToken> tokens = DebugDraw.GetTokens();
+
+            try
             {
-                try
+                foreach (GUIToken tkn in tokens)
                 {
-                    if (tkn.type == GUIType.TRACKER) tkn.SetText(tkn.txtAlt + ": " + tkn.getter().ToString());
-                }
-                catch(Exception ex)
-                {
-                    JeviLib.Error($"Exception while grabbing variable for IMGUI:\n\t\t{ex.GetType().FullName} '{ex.Message}'\n\t\t\t@ {ex.TargetSite.DeclaringType.FullName}.{ex.TargetSite.Name} (in {ex.Source})");
+                    try
+                    {
+                        if (tkn.type == GUIType.TRACKER) tkn.SetText(tkn.txtAlt + ": " + tkn.getter().ToString());
+                    }
+                    catch(Exception ex)
+                    {
+                        JeviLib.Error($"Exception while grabbing variable for IMGUI:\n\t\t{ex.GetType().FullName} '{ex.Message}'\n\t\t\t@ {ex.TargetSite.DeclaringType.FullName}.{ex.TargetSite.Name} (in {ex.Source})");
+                    }
                 }
             }
-            IEnumerable<GUIToken> topLeft = DebugDraw.tokens.Where(t => t.position == GUIPosition.TOP_LEFT);
-            IEnumerable<GUIToken> topRight = DebugDraw.tokens.Where(t => t.position == GUIPosition.TOP_RIGHT);
-            IEnumerable<GUIToken> bottomLeft = DebugDraw.tokens.Where(t => t.position == GUIPosition.BOTTOM_LEFT);
-            IEnumerable<GUIToken> bottomRight = DebugDraw.tokens.Where(t => t.position == GUIPosition.BOTTOM_RIGHT);
+            catch (Exception ex)
+            {
+                JeviLib.Error($"Exception while enumerating {nameof(GUIType)}.{GUIType.TRACKER} tokens. Are you calling DebugDraw in a variable checker?");
+                JeviLib.Error($"Exception information: Source = '{ex.Source}'; Exception = {ex}");
+            }
+
+            // these are only being enumerated once, so keeping them in an IEnumerable instead of ToArraying isn't a concern
+            IEnumerable<GUIToken> topLeft = tokens.Where(t => t.position == GUIPosition.TOP_LEFT);
+            IEnumerable<GUIToken> topRight = tokens.Where(t => t.position == GUIPosition.TOP_RIGHT);
+            IEnumerable<GUIToken> bottomLeft = tokens.Where(t => t.position == GUIPosition.BOTTOM_LEFT);
+            IEnumerable<GUIToken> bottomRight = tokens.Where(t => t.position == GUIPosition.BOTTOM_RIGHT);
 
             // Draw top left
+            int maxWidth = 0;
             int xStart = GuiCornerDist;
             int yStart = GuiCornerDist;
             foreach (GUIToken token in topLeft)
             {
-                Rect rekt = new(xStart, yStart, token.width, token.height);
+                if (maxWidth < token.width) maxWidth = token.width;
+                Rect rekt = new(xStart, yStart, maxWidth, token.height);
                 this.DrawToken(rekt, token);
                 yStart += token.height + GuiGap;
+                
+                if (yStart + token.height + GuiGap > Screen.height / 2)
+                {
+                    yStart = GuiCornerDist;
+                    xStart += maxWidth;
+                    maxWidth = 0;
+                }
             }
 
             // Draw top right
+            maxWidth = 0;
             xStart = Screen.width - GuiCornerDist;
             yStart = GuiCornerDist;
             foreach (GUIToken token in topRight)
             {
-                Rect rekt = new(xStart - token.width, yStart, token.width, token.height);
+                if (maxWidth < token.width) maxWidth = token.width;
+                Rect rekt = new(xStart - maxWidth, yStart, maxWidth, token.height);
                 this.DrawToken(rekt, token);
                 yStart += token.height + GuiGap;
+
+                if (yStart + token.height + GuiGap > Screen.height / 2)
+                {
+                    yStart = GuiCornerDist;
+                    xStart -= maxWidth;
+                    maxWidth = 0;
+                }
             }
 
             // Draw bottom left
+            maxWidth = 0;
             xStart = GuiCornerDist;
             yStart = Screen.height - GuiCornerDist;
             foreach (GUIToken token in bottomLeft)
             {
-                Rect rekt = new(xStart, yStart - token.height, token.width, token.height);
+                if (maxWidth < token.width) maxWidth = token.width;
+                Rect rekt = new(xStart, yStart - token.height, maxWidth, token.height);
                 this.DrawToken(rekt, token);
                 yStart -= token.height + GuiGap;
+
+                if (yStart - token.height - GuiGap < Screen.height / 2)
+                {
+                    yStart = Screen.height - GuiCornerDist;
+                    xStart += maxWidth;
+                    maxWidth = 0;
+                }
             }
 
             // Draw bottom right
+            maxWidth = 0;
             xStart = Screen.width - GuiCornerDist;
             yStart = Screen.height - GuiCornerDist;
             foreach (GUIToken token in bottomRight)
             {
-                Rect rekt = new(xStart - token.width, yStart - token.height, token.width, token.height);
+                if (maxWidth < token.width) maxWidth = token.width;
+                Rect rekt = new(xStart - maxWidth, yStart - token.height, maxWidth, token.height);
                 this.DrawToken(rekt, token);
                 yStart -= token.height + GuiGap;
+
+                if (yStart - token.height - GuiGap < Screen.height / 2)
+                {
+                    yStart = Screen.height - GuiCornerDist;
+                    xStart -= maxWidth;
+                    maxWidth = 0;
+                }
             }
         }
         catch (Exception ex)
         {
-            JeviLib.Error($"Exception thrown while drawing IMGUI:\n\t\t{ex.GetType().FullName} '{ex.Message}'\n\t\t\t@ {ex.TargetSite.DeclaringType.FullName}.{ex.TargetSite.Name} (in {ex.Source})");
+            Error($"Exception thrown while drawing IMGUI:\n\t{ex}");
         }
     }
 
@@ -333,7 +423,8 @@ public class JeviLib : MelonMod
                     }
                     asms.Add(currentAsm);
 #if DEBUG
-                    QueueLog($"Associating namespace {ns ?? "<none>"} with assembly {currentAsm.GetName().Name}. It is associated with {asms.Count} assembly(ies) now.");
+                    // dont need this log statement anymore, namespace collection works fine.
+                    //QueueLog($"Associating namespace {ns ?? "<none>"} with assembly {currentAsm.GetName().Name}. It is associated with {asms.Count} assembly(ies) now.");
 #endif
                 }
             }
@@ -374,7 +465,7 @@ public class JeviLib : MelonMod
 
 #if DEBUG
         sw.Stop();
-        QueueLog("Took " + sw.ElapsedMilliseconds + "ms to patch everything.");
+        QueueLog($"Took {sw.ElapsedMilliseconds}ms to patch everything.");
 #endif
         QueueLog("Started async logger thread");
         while (true)
@@ -423,18 +514,7 @@ public class JeviLib : MelonMod
 
     private void NotifiedLowRAM()
     {
-        JeviLib.Warn("BONEWORKS has been notified that your system has very little free RAM left! Double check that! Consider uninstalling some items!");
-    }
-
-    private float timeStart;
-    private void AssetBundle_Load_Start()
-    {
-        timeStart = Time.realtimeSinceStartup;
-    }
-
-    private void AssetBundle_Load_End(AssetBundle ab)
-    {
-        JeviLib.Log("Assetbundle " + ab.name + " took " + timeStart.ToString("2n") + "s to load");
+        JeviLib.Warn("BONELAB has been notified that your system has very little free RAM left! Double check that! Consider uninstalling some items!");
     }
 #endif
 }

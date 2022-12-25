@@ -13,7 +13,16 @@ namespace Jevil.IMGUI;
 public static class DebugDraw
 {
 #if DEBUG
-    internal static List<GUIToken> tokens = new();
+    private static bool isActive = false;
+    private static readonly List<GUIToken> tokens = new();
+    private static readonly List<GUIToken> tokensInactive = new(1) 
+    { DebugDraw.Button("Toggle JGUI", GUIPosition.TOP_RIGHT, () => Toggle()) };
+
+    internal static List<GUIToken> GetTokens()
+    {
+        if (isActive) return tokens;
+        else return tokensInactive;
+    }
 #endif
 
     /// <summary>
@@ -62,7 +71,9 @@ public static class DebugDraw
         GUIToken ret = new(text, call);
 #if DEBUG
         ret.position = position;
-        tokens.Add(ret);
+        // dont draw buttons on quest
+        if (!Utilities.IsPlatformQuest()) 
+            tokens.Add(ret);
 #endif
         return ret;
     }
@@ -105,5 +116,16 @@ public static class DebugDraw
         int idx = tokens.IndexOf(token);
         if (idx != -1) tokens.RemoveAt(idx);
 #endif
+    }
+
+    /// <summary>
+    /// Toggles JeviLib IMGUI. 
+    /// <br>After being called there will be a button in the top right of the screen to toggle Jevil IMGUI again.</br>
+    /// </summary>
+    /// <returns></returns>
+    public static bool Toggle()
+    {
+        isActive = !isActive;
+        return isActive;
     }
 }

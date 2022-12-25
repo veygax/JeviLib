@@ -1,4 +1,5 @@
-﻿using System;
+﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -31,7 +32,7 @@ internal static class DynTools
     }
 
 
-    internal static List<ParameterInfo> RemoveUnmatchedParameters(MethodInfo source, MethodInfo dest)
+    internal static List<ParameterInfo> RemoveUnmatchedParameters(MethodBase source, MethodInfo dest)
     {
         List<ParameterInfo> srcParams = source.GetParameters().ToList();
         ParameterInfo[] destParams = dest.GetParameters();
@@ -48,7 +49,11 @@ internal static class DynTools
                 continue;
             }
 
-            ParameterInfo pinf = srcParams.First(p => p.ParameterType == param.ParameterType);
+            ParameterInfo pinf = srcParams.FirstOrDefault(p => p.ParameterType == param.ParameterType);
+            if (pinf is null)
+            {
+                throw new InvalidHarmonyPatchArgumentException($"Patch parameter has no matching paramter in original method! {param.ParameterType.FullName} {param.Name}", source, dest);
+            }
             srcParams.Remove(pinf);
             ret.Add(pinf);
         }

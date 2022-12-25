@@ -1,8 +1,12 @@
-﻿using MelonLoader;
+﻿using BoneLib.BoneMenu;
+using BoneLib.BoneMenu.Elements;
+using HarmonyLib;
+using MelonLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -11,137 +15,45 @@ namespace Jevil.Prefs;
 
 internal static class PrefsInternal
 {
-    public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor, string filePath) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor, filePath);
+    static readonly ConditionalWeakTable<string, PrefEntries> nameToEntries = new();
+    static readonly Dictionary<Type, MethodInfo> genericCreateEnumElements = new();
+    static readonly MethodInfo baseCreateEnumElement = typeof(MenuCategory).GetMethodEasy(nameof(MenuCategory.CreateEnumElement));
+    static readonly object[] NoParameters = Array.Empty<object>();
+    //public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor, string filePath) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor, filePath);
 
     public static PrefEntries RegisterPreferences(Type type, string categoryName, bool prefSubcategory, Color categoryColor, string filePath)
     {
-        MelonPreferences_Category mpCat = MelonPreferences.CreateCategory(categoryName);
-        mpCat.SetFilePath(filePath, false, false); // actually get the values
-        mpCat.LoadFromFile(false);
-        // todo: reimplement
-        //MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
-        //PrefEntries ret = new(mpCat, bmCat);
-        PrefEntries ret = new(mpCat);
-        //if (prefSubcategory) bmCat = bmCat.CreateSubCategory(Preferences.prefSubcategoryName, categoryColor);
+        MelonPreferences_Category mpCat = MelonPreferences.CreateCategory(categoryName); // interally first checks for GetCategory
+        if (!filePath.EndsWith("MelonPreferences.cfg")) // only set file path if its not MP.cfg
+            mpCat.SetFilePath(filePath, true, false); // actually get the values
+        MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
+        if (prefSubcategory) bmCat = bmCat.CreateCategory(Preferences.prefSubcategoryName, categoryColor);
+        PrefEntries ret = nameToEntries.GetValue(categoryName, (_) => new PrefEntries(mpCat, bmCat));
+
+
+        FieldInfo[] staticFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
+        MethodInfo[] staticMethods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
 
 #if DEBUG
-        var instanceFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+        FieldInfo[] instanceFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+        FieldInfo[] instancePrefs = instanceFields.Where(f => f.GetCustomAttribute<Pref>() != null).ToArray();
+        FieldInfo[] instanceRanges = instanceFields.Where(f => f.GetCustomAttribute<RangePref>() != null).ToArray();
+        MethodInfo[] instancedMethods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(m => m.GetCustomAttribute<Pref>() != null).ToArray();
 
-        var instancePrefs = instanceFields.Where(f => f.GetCustomAttribute<Pref>() != null);
-        if (instancePrefs.Count() != 0)
+        if (instancePrefs.Length != 0)
         {
-            JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced preferences, this is not allowed!");
+            JeviLib.Warn($"The type {type.FullName} declares instanced preferences, this is not allowed!");
             JeviLib.Warn($"These preferences are: ");
             foreach (var field in instancePrefs) JeviLib.Warn(" - " + field.Name);
         }
-#endif
 
-        FieldInfo[] staticFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
-        if (staticFields.Length == 0) return ret;
-
-        foreach (FieldInfo field in staticFields)
+        if (instanceRanges.Length != 0)
         {
-            var ep = field.GetCustomAttribute<Pref>();
-            if (ep == null) continue;
-#if DEBUG
-            JeviLib.Log($"Found preference on {type.Name}.{field.Name}");
-#endif
-
-            var fieldType = field.FieldType;
-            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
-            if (fieldType == typeof(string))
-            {
-                var entry = SetEntry(mpCat, field, out string toSet, ep.desc);
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
-            }
-            else if (fieldType == typeof(bool))
-            {
-                var entry = SetEntry(mpCat, field, out bool toSet, ep.desc);
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
-            }
-            else if (fieldType == typeof(Color))
-            {
-                var entry = SetEntry(mpCat, field, out Color toSet, ep.desc);
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
-            }
-            else if (fieldType.IsEnum)
-            {
-#if DEBUG
-                if (!string.IsNullOrEmpty(ep.desc)) JeviLib.Warn($"Descriptions are not allowed for enum preferences - the description '{ep.desc}' on {type.FullName}.{field.Name} will not be put in MelonPreferences.cfg");
-#endif
-                Enum dv = (Enum)field.GetValue(null);
-                var entry = mpCat.CreateEntry<string>(field.Name, dv.ToString(), description: $"Default: {dv}; Options: {string.Join(", ", Enum.GetNames(fieldType))}");
-                Enum toSet = dv; // if the two are different
-                try
-                {
-                    toSet = (Enum)Enum.Parse(fieldType, entry.Value);
-                }
-                catch
-                {
-                    JeviLib.Warn($"Failed to parse '{entry.Value}' as a value in the enum {type.Name} for the class {type.Name}'s preference {field.Name}");
-                    JeviLib.Warn("Replacing it with its default value of " + dv);
-                    entry.Value = dv.ToString();
-                }
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateEnumElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); });
-            }
-#if DEBUG
-            else
-            {
-                JeviLib.Error($"{type.FullName}.{field.Name} is of un-bonemenu-able (or un-melonpreferences-able) type {type.Name}! This is no good!");
-            }
-            JeviLib.Log($"Set {type.FullName}.{field.Name} to " + field.GetValue(null));
-#endif
-        }
-
-
-#if DEBUG
-        var instanceRanges = instanceFields.Where(f => f.GetCustomAttribute<RangePref>() != null);
-        if (instanceRanges.Count() != 0)
-        {
-            JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced range preferences, this is not allowed!");
+            JeviLib.Warn($"The type {type.FullName} declares instanced range preferences, this is not allowed!");
             JeviLib.Warn($"These preferences are: ");
             foreach (var field in instanceRanges) JeviLib.Warn(" - " + field.Name);
         }
-#endif
 
-        foreach (var field in staticFields)
-        {
-            var rp = field.GetCustomAttribute<RangePref>();
-            if (rp == null) continue;
-#if DEBUG
-            JeviLib.Log($"Found effect range preference on {type.Name}.{field.Name}");
-#endif
-
-            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
-            var defaultValue = field.GetValue(null);
-            if (field.FieldType == typeof(int))
-            {
-                var entry = SetEntry(mpCat, field, out int toSet, $"{rp.low} to {rp.high}");
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateIntElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, (int)rp.inc, (int)rp.low, (int)rp.high);
-            }
-            else if (field.FieldType == typeof(float))
-            {
-                var entry = SetEntry(mpCat, field, out float toSet, $"{rp.low} to {rp.high}");
-                field.SetValue(null, toSet);
-                //todo bmCat.CreateFloatElement(readableName, Color.white, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); }, rp.inc, rp.low, rp.high);
-            }
-#if DEBUG
-            else
-            {
-                JeviLib.Error($"{type.Name}.{field.Name} is of un-range-able type {field.FieldType.Name}! This is no good!");
-            }
-            JeviLib.Log($"Set {type.FullName}.{field.Name} to " + field.GetValue(null));
-            JeviLib.Log("Successfully created range preference");
-#endif
-        }
-
-#if DEBUG
-        MethodInfo[] instancedMethods = type.GetMethods(BindingFlags.Instance| BindingFlags.Public | BindingFlags.NonPublic).Where(m => m.GetCustomAttribute<Pref>() != null).ToArray();
         if (instancedMethods.Length != 0)
         {
             JeviLib.Warn($"The type {type.Namespace}.{type.Name} declares instanced method preferences, this is not allowed!");
@@ -150,44 +62,17 @@ internal static class PrefsInternal
         }
 #endif
 
-        MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
-        foreach (MethodInfo method in methods)
-        {
-            Pref pref = method.GetCustomAttribute<Pref>();
-            if (pref == null) continue;
-#if DEBUG
-            if (method.GetParameters().Length != 0)
-            {
-                JeviLib.Warn($"Method {type.FullName}.{method.Name} takes parameters! This makes it ineligible to become a FunctionElement!");
-                continue;
-            }
-#endif
-
-            Action deleg8; // "delegate" is a keyword
-            try
-            {
-                deleg8 = (Action)method.CreateDelegate(typeof(Action));
-            }
-            catch
-            {
-#if DEBUG
-                JeviLib.Warn($"Failed to create FunctionElement delegate for {type.FullName}.{method.Name}, this is likely because it returns a value, which is fine. Falling back to the slower MethodInfo.Invoke");
-#endif
-                deleg8 = () => { method.Invoke(null, new object[0]); };
-            }
-#if DEBUG
-
-#endif
-            //todo bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
-#if DEBUG
-            JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
-#endif
-        }
+        RegisterPrefAttr(type, staticFields, ret);
+        RegisterRangeAttr(type, staticFields, ret);
+        RegisterMethods(type, staticMethods, ret);
 
 #if DEBUG
-        JeviLib.Log($"Created {mpCat.Entries.Count} entries in the preference category for {type.Name}");
+        JeviLib.Log($"Created {mpCat.Entries.Count} entries in the preference category named {categoryName}");
 #endif
+
         if (mpCat.Entries.Count != 0) mpCat.SaveToFile(false);
+
+        //nameToEntries.Add(categoryName, ret); dont need, GetOrCreate works fine
 
         return ret;
     }
@@ -217,4 +102,168 @@ internal static class PrefsInternal
             _ => throw new ArgumentException($"Unrecognized {nameof(UnityDefaultColor)} value: {udc}"),
         };
     
+
+    private static void RegisterPrefAttr(Type type, FieldInfo[] fields, PrefEntries prefEntries)
+    {
+        MelonPreferences_Category mpCat = prefEntries.MelonPrefsCategory;
+        MenuCategory bmCat = prefEntries.BoneMenuCategory;
+
+        foreach (FieldInfo field in fields)
+        {
+            var ep = field.GetCustomAttribute<Pref>();
+            if (ep == null) continue;
+#if DEBUG
+            JeviLib.Log($"Found preference on {type.Name}.{field.Name}");
+#endif
+
+            var fieldType = field.FieldType;
+            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
+            if (fieldType == typeof(string))
+            {
+                var entry = SetEntry(mpCat, field, out string toSet, ep.desc);
+                field.SetValue(null, toSet);
+#if DEBUG
+                JeviLib.Warn($"BoneMenu does not support string elements. Preference field is {type.FullName}.{type.FullDescription()}");
+#endif
+                //bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+            }
+            else if (fieldType == typeof(bool))
+            {
+                var entry = SetEntry(mpCat, field, out bool toSet, ep.desc);
+                field.SetValue(null, toSet);
+                bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+            }
+            else if (fieldType == typeof(Color))
+            {
+                var entry = SetEntry(mpCat, field, out Color toSet, ep.desc);
+                field.SetValue(null, toSet);
+#if DEBUG
+                JeviLib.Warn($"BoneMenu does not support color elements. Preference field is {type.FullName}.{type.FullDescription()}");
+#endif
+                //bmCat.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+            }
+            else if (fieldType.IsEnum)
+            {
+#if DEBUG
+                if (!string.IsNullOrEmpty(ep.desc)) JeviLib.Warn($"Descriptions are not allowed for enum preferences - the description '{ep.desc}' on {type.FullName}.{field.Name} will not be put in MelonPreferences.cfg");
+#endif
+                if (!genericCreateEnumElements.TryGetValue(fieldType, out MethodInfo createEnumElement))
+                {
+                    createEnumElement = baseCreateEnumElement.MakeGenericMethod(fieldType);
+                    genericCreateEnumElements[fieldType] = createEnumElement;
+                }
+
+                Enum dv = (Enum)field.GetValue(null);
+                var entry = mpCat.CreateEntry<string>(field.Name, dv.ToString(), description: $"Default: {dv}; Options: {string.Join(", ", Enum.GetNames(fieldType))}");
+                Enum toSet = dv; // if the two are different
+                try
+                {
+                    toSet = (Enum)Enum.Parse(fieldType, entry.Value);
+                }
+                catch
+                {
+                    JeviLib.Warn($"Failed to parse '{entry.Value}' as a value in the enum {fieldType.Name} for the class {type.FullName}'s preference {field.Name}");
+                    JeviLib.Warn("Replacing it with its default value of " + dv);
+                    entry.Value = dv.ToString();
+                }
+                object[] parameters = { readableName, ep.color, (dynamic val) => { field.SetValue(null, val); entry.Value = val.ToString(); mpCat.SaveToFile(false); } };
+                field.SetValue(null, toSet);
+
+                try
+                {
+                    createEnumElement.Invoke(bmCat, parameters);
+                }
+                catch
+#if DEBUG
+                (Exception ex)
+#endif
+                {
+#if DEBUG
+                    JeviLib.Warn($"It seems that JeviLib is unable to create an enum element for {type.FullName}.{field.Name}; See more: {ex}");
+#endif
+                }
+            }
+#if DEBUG
+            else
+            {
+                JeviLib.Error($"{type.FullName}.{field.Name} is of un-bonemenu-able (or un-melonpreferences-able) type {fieldType.Name}! This is no good!");
+            }
+            JeviLib.Log($"Set {type.FullName}.{field.Name} to " + field.GetValue(null));
+#endif
+        }
+    }
+
+    private static void RegisterRangeAttr(Type type, FieldInfo[] fields, PrefEntries prefEntries)
+    {
+        MelonPreferences_Category mpCat = prefEntries.MelonPrefsCategory;
+        MenuCategory bmCat = prefEntries.BoneMenuCategory;
+
+        foreach (var field in fields)
+        {
+            var rp = field.GetCustomAttribute<RangePref>();
+            if (rp == null) continue;
+#if DEBUG
+            JeviLib.Log($"Found effect range preference on {type.Name}.{field.Name}");
+#endif
+
+            var readableName = Utilities.GenerateFriendlyMemberName(field.Name);
+            var defaultValue = field.GetValue(null);
+            if (field.FieldType == typeof(int))
+            {
+                var entry = SetEntry(mpCat, field, out int toSet, $"{rp.low} to {rp.high}");
+                field.SetValue(null, toSet);
+                bmCat.CreateIntElement(readableName, Color.white, toSet, (int)rp.inc, (int)rp.low, (int)rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+            }
+            else if (field.FieldType == typeof(float))
+            {
+                var entry = SetEntry(mpCat, field, out float toSet, $"{rp.low} to {rp.high}");
+                field.SetValue(null, toSet);
+                bmCat.CreateFloatElement(readableName, Color.white, toSet, rp.inc, rp.low, rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+            }
+#if DEBUG
+            else
+            {
+                JeviLib.Error($"{type.Name}.{field.Name} is of un-range-able type {field.FieldType.Name}! This is no good!");
+            }
+            JeviLib.Log($"Set {type.FullName}.{field.Name} to " + field.GetValue(null));
+            JeviLib.Log("Successfully created range preference");
+#endif
+        }
+    }
+
+    private static void RegisterMethods(Type type, MethodInfo[] methods, PrefEntries prefEntries)
+    {
+        foreach (MethodInfo method in methods)
+        {
+            Pref pref = method.GetCustomAttribute<Pref>();
+            if (pref == null) continue;
+#if DEBUG
+            if (method.GetParameters().Length != 0)
+            {
+                JeviLib.Warn($"Method {type.FullName}.{method.Name} takes parameters! This makes it ineligible to become a FunctionElement!");
+                continue;
+            }
+#endif
+
+            Action deleg8; // "delegate" is a keyword
+            try
+            {
+                deleg8 = (Action)method.CreateDelegate(typeof(Action));
+            }
+            catch
+            {
+#if DEBUG
+                JeviLib.Warn($"Failed to create FunctionElement delegate for {type.FullName}.{method.Name}, this is likely because it returns a value, which is fine. Falling back to the slower MethodInfo.Invoke");
+#endif
+                deleg8 = () => { method.Invoke(null, NoParameters); };
+            }
+#if DEBUG
+
+#endif
+            prefEntries.BoneMenuCategory.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+#if DEBUG
+            JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
+#endif
+        }
+    }
 }

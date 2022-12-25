@@ -9,9 +9,9 @@ using UnityEngine;
 namespace Jevil.Prefs;
 
 /// <summary>
-/// Class to mark register MelonPreferences and BoneMenu categories automatically, with minimal effort. This attribute is not inherited.
+/// Class to mark register MelonPreferences and BoneMenu categories automatically, with minimal effort. This attribute is inherited for potential base-class referencing .
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
 public sealed class Preferences : Attribute
 {
     /// <summary>
@@ -55,21 +55,38 @@ public sealed class Preferences : Attribute
     /// <returns>A <see cref="PrefEntries"/> instance.</returns>
     /// <exception cref="InvalidOperationException">The specified type is not decorated with Preferences.</exception>
     public static PrefEntries Register<T>()
+        => Register(typeof(T));
+
+    /// <summary>
+    /// Register the preferences of the given class.
+    /// <para>Debug builds have a check for instanced fields and will warn (but not <c>throw</c>) if it finds one. Release builds will ignore them.</para>
+    /// </summary>
+    /// <param name="type">The class containing the preferences. It must be decorated with the Preferences attribute.</param>
+    /// <param name="overrideName">Overrides the name provided by <see cref="Preferences.categoryName"/>. Useful for subclasses.</param>
+    /// <returns>A <see cref="PrefEntries"/> instance.</returns>
+    /// <exception cref="InvalidOperationException">The specified type is not decorated with Preferences.</exception>
+    public static PrefEntries Register(Type type, string overrideName = null)
     {
-        Type type = typeof(T);
-        Preferences attrib = (Preferences)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(Preferences)) 
+        Preferences attrib = (Preferences)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(Preferences))
             ?? throw new InvalidOperationException($"Type {type.Namespace ?? "<Root>"}.{type.Name} doesn't have the [{nameof(Preferences)}] attribute! This is required to register preferences!");
 
         PreferencesColor pCol = (PreferencesColor)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(PreferencesColor));
-        
+
         PreferencesFile pFile = (PreferencesFile)type.GetCustomAttributes(false).FirstOrDefault(a => a.GetType() == typeof(PreferencesFile));
         string qualifiedPath = Path.Combine(MelonLoader.MelonUtils.UserDataDirectory, pFile?.path ?? "MelonPreferences.cfg");
-        
-        return Register(type, attrib, pCol?.color ?? Color.white, qualifiedPath);
+
+        PrefEntries pentries = Register(type, attrib, pCol?.color ?? Color.white, qualifiedPath, overrideName ?? attrib.categoryName);
+
+        foreach (Type inheritingType in type.Assembly.GetTypes().Where(t => t.IsSubclassOf(type)))
+        {
+            Register(inheritingType, attrib, pCol?.color ?? Color.white, qualifiedPath, overrideName ?? attrib.categoryName);
+        }
+
+        return pentries;
     }
 
-    private static PrefEntries Register(Type type, Preferences attribute, Color color, string filePath)
+    private static PrefEntries Register(Type type, Preferences attribute, Color color, string filePath, string name)
     {
-        return PrefsInternal.RegisterPreferences(type, attribute.categoryName, attribute.prefSubcategory, color, filePath);
+        return PrefsInternal.RegisterPreferences(type, name, attribute.prefSubcategory, color, filePath);
     }
 }

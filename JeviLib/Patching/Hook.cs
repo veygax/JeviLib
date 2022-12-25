@@ -24,7 +24,7 @@ public static class Hook
     private static readonly MethodInfo GetDelegate_Info = typeof(Hook).GetMethod(nameof(GetDelegate), BindingFlags.Static | BindingFlags.NonPublic);
 
     /// <summary>
-    /// Get all methods dynamically created from <see cref="OntoMethod{TDelegate}(MethodInfo, TDelegate)"/> and <see cref="OntoDelegate{TDelegateSource, TDelegateDest}(TDelegateSource, TDelegateDest)"/>.
+    /// Get all methods dynamically created from <see cref="OntoMethod{TDelegate}(MethodBase, TDelegate)"/> and <see cref="OntoDelegate{TDelegateSource, TDelegateDest}(TDelegateSource, TDelegateDest)"/>.
     /// </summary>
     public static IEnumerable<MethodInfo> GetConditionalDisableMethods()
         => DynTools.DynamicModuleBuilder.GetTypes()
@@ -33,7 +33,7 @@ public static class Hook
                                         .Where(m => m.Name.Contains("Hook_"));
 
     /// <summary>
-    /// Redirection to <see cref="OntoMethod{TDelegate}(MethodInfo, TDelegate)"/>. See that method's summary and remarks unless you value 'trial and error' and 'fucking around and finding out' over your time.
+    /// Redirection to <see cref="OntoMethod{TDelegate}(MethodBase, TDelegate)"/>. See that method's summary and remarks unless you value 'trial and error' and 'fucking around and finding out' over your time.
     /// <para>This is one of the few JeviLib methods that will actually <see langword="throw"/> when something is amiss, so make sure you have your ducks in a row.</para>
     /// </summary>
     /// <typeparam name="TDelegateSource"></typeparam>
@@ -53,7 +53,7 @@ public static class Hook
     /// <param name="toBeRedirected">The method to be hooked on to via a Harmony prefix</param>
     /// <param name="toBeRan">The delegate to be ran after toBeRedirected is executed.</param>
     /// <exception cref="ArgumentNullException">The method or delegate is null.</exception>
-    public static void OntoMethod<TDelegate>(MethodInfo toBeRedirected, TDelegate toBeRan) where TDelegate : Delegate
+    public static void OntoMethod<TDelegate>(MethodBase toBeRedirected, TDelegate toBeRan) where TDelegate : Delegate
     {
         // cover my ass to make sure shit doesnt break while messing around in such a critical field
         if (toBeRedirected == null) throw new ArgumentNullException(nameof(toBeRedirected));
@@ -107,7 +107,7 @@ public static class Hook
 
     #region Logging
     /// <summary>
-    /// Whether to allow the (frankly copious amounts of) log statements in <see cref="OntoMethod{TDelegate}(MethodInfo, TDelegate)"/> to output to the log file.
+    /// Whether to allow the (frankly copious amounts of) log statements in <see cref="OntoMethod{TDelegate}(MethodBase, TDelegate)"/> to output to the log file.
     /// <para>Debug builds default to false, release builds default to true.</para>
     /// </summary>
     public static bool DisableLogging { get => DynTools.disableLogging; set { DynTools.disableLogging = value; } }

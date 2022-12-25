@@ -1,4 +1,11 @@
-﻿using ModThatIsNotMod;
+﻿using BoneLib;
+using BoneLib.Nullables;
+using Cysharp.Threading.Tasks;
+using Jevil.Spawning;
+using SLZ.Marrow.Data;
+using SLZ.Marrow.Pool;
+using SLZ.Marrow.Warehouse;
+using SLZ.Rig;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -492,12 +499,155 @@ public static class Extensions
     } 
 
     /// <summary>
-    /// <b>I</b>s <b><see langword="N"/></b><see langword="ull"/> <b>O</b>r <b>C</b>ollected
+    /// Returns whether an object in the IL2CPP domain <b>I</b>s <b><see langword="N"/></b><see langword="ull"/> <b>O</b>r <b>C</b>ollected.
     /// </summary>
     /// <param name="obj">Any Unity object.</param>
     /// <returns></returns>
     public static bool INOC(this UnityEngine.Object obj)
     {
         return obj is null || obj.WasCollected || obj == null;
+    }
+
+    /// <summary>
+    /// Shortcut to <see cref="Barcodes.ToBarcodeString(JevilBarcode)"/>
+    /// </summary>
+    /// <param name="jBarcode">Who the hell looks at the first parameter of extension methods? Weirdo.</param>
+    /// <returns>A Barcode ID string corresponsing to the JevilBarcode value.</returns>
+    public static string ToString(this JevilBarcode jBarcode)
+    {
+        return Barcodes.ToBarcodeString(jBarcode);
+    }
+
+    /// <summary>
+    /// <i>Assuming the given barcode represents a spawnable</i>, spawns an instance of whatever the barcode represents.
+    /// <para>Shortcut to <see cref="Barcodes.Spawn(JevilBarcode, Vector3, Quaternion)"/></para>
+    /// </summary>
+    /// <param name="spawnableBarcode">A barcode. Assumed to represent a spawnable.</param>
+    /// <param name="position">Worldspace position</param>
+    /// <param name="rotation">Worldspace rotation</param>
+    public static void Spawn(this JevilBarcode spawnableBarcode, Vector3 position, Quaternion rotation)
+    {
+        Barcodes.Spawn(spawnableBarcode, position, rotation);
+    }
+
+    /// <summary>
+    /// Adds a velocity change to all rigidbodies on the player.
+    /// </summary>
+    /// <param name="physRig">who looks at the first param of an extension method ??? take this https://www.youtube.com/watch?v=O-2n-Y-uSRg</param>
+    /// <param name="velocity">A worldspace vector representing the change in velocity for each of the player's rigidbodies.</param>
+    public static void AddVelocityChange(this PhysicsRig physRig, Vector3 velocity)
+    {
+        physRig.torso.rbChest.AddForce(velocity, ForceMode.VelocityChange);
+        physRig.torso.rbPelvis.AddForce(velocity, ForceMode.VelocityChange);
+        physRig.torso.rbSpine.AddForce(velocity, ForceMode.VelocityChange);
+        physRig.torso.rbHead.AddForce(velocity, ForceMode.VelocityChange);
+        physRig.rbFeet.AddForce(velocity, ForceMode.VelocityChange);
+        physRig.rbKnee.AddForce(velocity, ForceMode.VelocityChange);
+        
+        // i recall the "rb" field being null in BW, so im just gonna cover my bases
+        //todo: check if Hand.rb is null
+        try
+        {
+            Player.leftHand.rb.AddForce(velocity, ForceMode.VelocityChange);
+            Player.rightHand.rb.AddForce(velocity, ForceMode.VelocityChange);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Spawns whatever a crate represents.
+    /// </summary>
+    /// <param name="crate">oo ee oo aa aa ting tang walla walla bing bang</param>
+    /// <param name="pos">Worldspace position to spawn the object</param>
+    /// <param name="rot">Worldspace rotation to give the object</param>
+    public static void Spawn(this SpawnableCrate crate, Vector3 pos, Quaternion rot)
+    {
+        Spawnable spawn = Barcodes.ToSpawnable(crate.Barcode.ID);
+        AssetSpawner.Spawn(spawn, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+    }
+
+    /// <summary>
+    /// Spawns another <see cref="AssetPoolee"/> from the given <see cref="AssetPoolee"/>'s <see cref="AssetPool"/>.
+    /// </summary>
+    /// <param name="asspoole">https://media.tenor.com/images/1af43e40653cb90765d776fedf0186cf/tenor.gif</param>
+    /// <param name="pos">Worldspace position to spawn the object</param>
+    /// <param name="rot">Worldspace rotation to give the object</param>
+    public static void Dupe(this AssetPoolee asspoole, Vector3 pos, Quaternion rot)
+    {
+        asspoole.spawnableCrate.Spawn(pos, rot);
+    }
+
+    /// <summary>
+    /// "Converts" a <see cref="UniTask{T}"/> to a <see cref="Task{TResult}"/> that you, the programmer in the normal managed domain <i>(fuck you il2cpp)</i> can <see langword="await"/>.
+    /// </summary>
+    /// <typeparam name="T">The UniTask type.</typeparam>
+    /// <param name="uniTask">Any UniTask.</param>
+    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
+    /// <remarks>This doesn't do a conversion so much as it repeatedly <see langword="await"/>s <see cref="Task.Yield"/> while the <paramref name="uniTask"/> remains uncompleted, before returning its result.</remarks>
+    /// <exception cref="ObjectDisposedException">The UniTask was disposed in the IL2CPP domain. This may be thrown, but I'm not sure.</exception>
+    /// <exception cref="Exception">The UniTask threw an exception in the IL2CPP domain. An exception of any type may be thrown, but I'm not sure.</exception>
+    public static async Task<T> ToTask<T>(this UniTask<T> uniTask)
+    {
+        //todo: check if this works
+        UniTask<T>.Awaiter awaiter = uniTask.GetAwaiter();
+        try
+        {
+            while (!awaiter.IsCompleted) await Task.Yield();
+            return awaiter.GetResult();
+        }
+        finally
+        {
+#if DEBUG
+            JeviLib.Error($"Exception while awaiting a UniTask of type {typeof(T).FullName}");
+#endif
+        }
+    }
+
+    /// <summary>
+    /// "Converts" a <see cref="UniTask"/> to a <see cref="Task"/> that you, the programmer in the normal managed domain <i>(fuck you il2cpp)</i> can <see langword="await"/>.
+    /// </summary>
+    /// <param name="uniTask">Any UniTask.</param>
+    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
+    /// <remarks>This doesn't do a conversion so much as it repeatedly <see langword="await"/>s <see cref="Task.Yield"/> while the <paramref name="uniTask"/> remains uncompleted, before returning its result.</remarks>
+    public static async Task ToTask(this UniTask uniTask)
+    {
+        //todo: check if this works
+        UniTask.Awaiter awaiter = uniTask.GetAwaiter();
+        try
+        {
+            while (!awaiter.IsCompleted) await Task.Yield();
+        }
+        finally
+        {
+#if DEBUG
+            JeviLib.Error($"Exception while awaiting a non-generic UniTask");
+#endif
+        }
+    }
+
+    /// <summary>
+    /// Allows a coroutine to yield while a UniTask is executing.
+    /// </summary>
+    /// <typeparam name="T">The UniTask type.</typeparam>
+    /// <param name="uniTask">Any UniTask.</param>
+    /// <param name="resultSetter">A callback that runs when </param>
+    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
+    /// <exception cref="ObjectDisposedException">The UniTask was disposed in the IL2CPP domain. This may be thrown, but I'm not sure.</exception>
+    /// <exception cref="Exception">The UniTask threw an exception in the IL2CPP domain. An exception of any type may be thrown, but I'm not sure.</exception>
+    public static IEnumerator CoroutineWait<T>(this UniTask<T> uniTask, Action<T> resultSetter)
+    {
+        //todo: check if this works
+        UniTask<T>.Awaiter awaiter = uniTask.GetAwaiter();
+        try
+        {
+            while (!awaiter.IsCompleted) yield return null;
+            resultSetter(awaiter.GetResult());
+        }
+        finally
+        {
+#if DEBUG
+            JeviLib.Error($"Exception while yielding for a UniTask of type {typeof(T).FullName}");
+#endif
+        }
     }
 }

@@ -49,8 +49,10 @@ public static class Tweener
             }
             catch(Exception ex)
             {
+#if DEBUG
                 JeviLib.Log($"Removing {tween.name}; There was an exception whilst updating it.");
                 JeviLib.Log($"Tween exception: {ex}", ConsoleColor.DarkRed);
+#endif
                 tweens.RemoveAt(i);
             }
         }

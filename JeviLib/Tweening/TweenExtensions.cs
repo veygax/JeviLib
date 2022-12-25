@@ -58,7 +58,7 @@ public static class TweenExtensions
     }
 
     /// <summary>
-    /// Tween an <see cref="AudioSource"/>'s volume. You can use this in combination with <see cref="TweenTweenExtensions.RunOnFinish{T}(T, Action)"/> to call <see cref="AudioSource.Stop"/> if you want to smoothly stop an AudioPlayer.
+    /// Tween an <see cref="AudioSource"/>'s volume. You can use this in combination with <see cref="TweenTweenExtensions.RunOnFinish{T}(T, Action)"/> to call <see cref="AudioSource.Stop()"/> if you want to smoothly stop an AudioPlayer.
     /// </summary>
     /// <param name="a">The AudioSource to be acted upon.</param>
     /// <param name="vol">The target volume.</param>
@@ -72,7 +72,7 @@ public static class TweenExtensions
     }
 
     /// <summary>
-    /// Tween an <see cref="AudioSource"/>'s volume to 0 and then call <see cref="AudioSource.Stop"/>.
+    /// Tween an <see cref="AudioSource"/>'s volume to 0 and then call <see cref="AudioSource.Stop()"/>.
     /// </summary>
     /// <param name="a">The AudioSource to be acted upon.</param>
     /// <param name="length">The duration of the Tween before it gets stopped.</param>

@@ -31,6 +31,10 @@ public static class Instances
     /// </summary>
     public static RigManager Player_RigManager { get; internal set; }
     /// <summary>
+    /// A cached reference to <see cref="PhysicsRig"/>
+    /// </summary>
+    public static PhysicsRig Player_PhysicsRig { get; internal set; }
+    /// <summary>
     /// A cached reference to <see cref="global::Player_Health"/>
     /// </summary>
     public static Player_Health Player_Health { get; internal set; }
@@ -42,7 +46,7 @@ public static class Instances
     /// </summary>
     public static Camera SpectatorCam { get; internal set; }
     /// <summary>
-    /// Every camera in the currently loaded scene.
+    /// Every camera in the hierarchy of the rig manager.
     /// </summary>
     public static Camera[] Cameras { get; internal set; }
 
@@ -60,12 +64,12 @@ public static class Instances
     public static AudioMixerGroup SFXMixer { get; internal set; }
     /// <summary>
     /// An <see cref="AudioPlayer"/> already set to output to <see cref="MusicMixer"/>
-    /// <para>Use <see cref="ModThatIsNotMod.Nullables.NullableMethodExtensions"/> to play things through it.</para>
+    /// <para>Use <see cref="BoneLib.Nullables.NullableMethodExtensions"/> to play things through it.</para>
     /// </summary>
     public static AudioPlayer MusicPlayer { get; internal set; }
     /// <summary>
     /// An <see cref="AudioPlayer"/> already set to output to <see cref="SFXMixer"/>
-    /// <para>Use <see cref="ModThatIsNotMod.Nullables.NullableMethodExtensions"/> to play things through it.</para>
+    /// <para>Use <see cref="BoneLib.Nullables.NullableMethodExtensions"/> to play things through it.</para>
     /// </summary>
     public static AudioPlayer SFXPlayer { get; internal set; }
 

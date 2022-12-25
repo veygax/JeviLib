@@ -18,10 +18,10 @@ public class PreferencesColor : Attribute
     /// <summary>
     /// why rgba? cause <see cref="Color"/> has an overload for it.
     /// </summary>
-    /// <param name="r"></param>
-    /// <param name="g"></param>
-    /// <param name="b"></param>
-    /// <param name="a"></param>
+    /// <param name="r">Red component of RGBA</param>
+    /// <param name="g">Green component of RGBA</param>
+    /// <param name="b">Blue component of RGBA</param>
+    /// <param name="a">Alpha component of RGBA</param>
     public PreferencesColor(float r, float g, float b, float a)
     {
         color = new Color(r, g, b, a);
@@ -30,11 +30,23 @@ public class PreferencesColor : Attribute
     /// <summary>
     /// why rgb? cause <see cref="Color"/> has an overload for it.
     /// </summary>
-    /// <param name="r"></param>
-    /// <param name="g"></param>
-    /// <param name="b"></param>
+    /// <param name="r">Red component of RGB</param>
+    /// <param name="g">Green component of RGB</param>
+    /// <param name="b">Blue component of RGB</param>
     public PreferencesColor(float r, float g, float b)
     {
         color = new Color(r, g, b);
+    }
+
+    /// <summary>
+    /// Assigns a color to a prefernces entry.
+    /// </summary>
+    /// <param name="defaultColor">
+    /// A unity default color. These usually have all their components either maxed or zeroed.
+    /// <br>If you want more control over the color, use another overload.</br>
+    /// </param>
+    public PreferencesColor(UnityDefaultColor defaultColor)
+    {
+        color = PrefsInternal.EnumToColor(defaultColor);
     }
 }
