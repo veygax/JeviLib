@@ -122,10 +122,14 @@ public static class DebugDraw
     /// Toggles JeviLib IMGUI. 
     /// <br>After being called there will be a button in the top right of the screen to toggle Jevil IMGUI again.</br>
     /// </summary>
-    /// <returns></returns>
+    /// <returns>Whether JGUI is active after being toggled.</returns>
     public static bool Toggle()
     {
+#if DEBUG
         isActive = !isActive;
         return isActive;
+#else
+        return default;
+#endif
     }
 }
