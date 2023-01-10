@@ -82,12 +82,25 @@ public static class Instances
     /// Holds a cache of all loaded namespaces and their corresponding assemblies.
     /// </summary>
     public static readonly Dictionary<string, Assembly> namespaceToAssembly = new();
-    
+
     /// <summary>
     /// A read-only collection of all pools.
     /// </summary>
-    public static IReadOnlyList<AssetPool> AllPools => allPools.AsReadOnly(); //todo: patch assetpool ctor
+    public static IReadOnlyCollection<AssetPool> AllPools
+    {
+        get
+        {
+            // Gotta do this horribleness because AssetPool is not a Unity object
+            var poolList = AssetSpawner._instance._poolList;
+            if (poolList._version == allPoolsVersion) return allPools;
+            
+            allPools = poolList.ToArray().ToList().AsReadOnly();
+            allPoolsVersion = poolList._version;
+            return allPools;
+        }
+    }
 
-    internal static List<AssetPool> allPools = new();
+    internal static int allPoolsVersion = -1;
+    internal static IReadOnlyList<AssetPool> allPools;
     internal static List<IDictionary> instanceCachesToClear = new();
 }
