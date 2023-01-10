@@ -95,13 +95,6 @@ public class JeviLib : MelonMod
         Log($"Took {patchTimeSW.ElapsedMilliseconds}ms to find & patch {ctors.Length} methods (constructors)", ConsoleColor.DarkGray);
 #endif
 
-        Ungovernable.Init();
-        foreach (Assembly asm in MelonMod.RegisteredMelons.Select(mm => mm.GetType().Assembly))
-        {
-            UngovernableAttribute attr = asm.GetCustomAttribute<UngovernableAttribute>();
-            if (attr != null) Ungovernable.TranspileAssembly(asm, attr.ungovernableType);
-        }
-        Spawning.Zombies.Init();
         Task.Run(LogFromQueue);
 
         Task.Run(this.GetNamespaces);
