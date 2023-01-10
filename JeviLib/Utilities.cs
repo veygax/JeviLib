@@ -31,6 +31,9 @@ public static class Utilities
     static Type inspectorManager;
 #endif
 
+    static bool? uniTasksNeedPatch;
+    static bool? coroutinesNeedPatch;
+
     /// <summary>
     /// Tells whether the currently running game is installed from the Oculus store using a basic file check.
     /// </summary>
@@ -639,4 +642,34 @@ public static class Utilities
     /// <returns>If <see cref="MelonUtils.CurrentPlatform"/> is <c>3</c>.</returns>
     public static bool IsPlatformQuest()
         => MelonUtils.CurrentPlatform == (MelonPlatformAttribute.CompatiblePlatforms)3;
+
+    /// <summary>
+    /// Returns whether yielding WaitForSeconds/WaitForSecondsRealtime/another coroutine will work as expected, or if it will only yield for one frame.
+    /// <br>JeviLib v1.2.0 restores expected functionality by replacing the IL2CPP support module (in this context "patching" it).</br>
+    /// </summary>
+    /// <returns><see langword="true"/> if yielding always waits only one frame. <see langword="false"/> if yielding works as expected (e.g. if the support module has been replaced).</returns>
+    public static bool AreCoroutinesUnpatched()
+    {
+        if (coroutinesNeedPatch.HasValue) return coroutinesNeedPatch.Value;
+
+        Assembly supportModule = AppDomain.CurrentDomain.GetAssemblies().First(asm => !asm.IsDynamic && asm.Location.Contains("SupportModules") && asm.Location.EndsWith(@"Il2Cpp.dll"));
+        Type monoEnumeratorWrapper = supportModule.GetType("MelonLoader.Support.MonoEnumeratorWrapper");
+        FieldInfo enumeratorWaitTimeField = monoEnumeratorWrapper.GetField("waitedTime", BindingFlags.Instance | BindingFlags.NonPublic);
+        coroutinesNeedPatch = enumeratorWaitTimeField == null;
+        return coroutinesNeedPatch.Value;
+    }
+
+    /// <summary>
+    /// Returns whether a <see cref="Cysharp.Threading.Tasks.UniTask"/> can be <see langword="await"/>ed by mod code.
+    /// <br>JeviLib v1.2.0 restores <see langword="await"/> functionality on UniTasks by modifying ("patching") <see cref="Cysharp.Threading.Tasks.UniTask.Awaiter"/> and <see cref="Cysharp.Threading.Tasks.UniTask{T}.Awaiter"/> to make them implement INotifyCompletion.</br>
+    /// </summary>
+    /// <returns><see langword="true"/> if UniTasks are unable to be <see langword="await"/>ed by mod code. <see langword="false"/> if UniTask.dll has already been patched.</returns>
+    public static bool AreUniTasksUnpatched()
+    {
+        if (uniTasksNeedPatch.HasValue) return uniTasksNeedPatch.Value;
+
+        MemberInfo[] awaiterInterfaceMethods = typeof(Cysharp.Threading.Tasks.UniTask.Awaiter).GetMethods().Where(m => m.Name == "OnCompleted").ToArray();
+        uniTasksNeedPatch = awaiterInterfaceMethods.Length == 1;
+        return uniTasksNeedPatch.Value;
+    }
 }

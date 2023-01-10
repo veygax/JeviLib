@@ -3,14 +3,18 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BoneLib;
+using BoneLib.Nullables;
 using BoneLib.RandomShit;
+using Cysharp.Threading.Tasks;
 using Jevil.IMGUI;
 using Jevil.Patching;
+using Jevil.Spawning;
 using Jevil.Tweening;
 using MelonLoader;
 using MelonLoader.Assertions;
@@ -76,23 +80,21 @@ public class JeviLib : MelonMod
         this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.Zero", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.zero, 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Test spawning", GUIPosition.TOP_LEFT, TestSpawning));
+        this.standardJevilTokens.Add(DebugDraw.Button("Test UniTask async", GUIPosition.TOP_LEFT, TestUniTaskAsync));
 
         this.standardJevilTokens.Add(DebugDraw.Button("PBM.CNSPU", GUIPosition.TOP_RIGHT, () => { PopupBoxManager.CreateNewShibePopup(); }));
 
-        Stopwatch patchTimeSW = Stopwatch.StartNew();
+        Stopwatch submoduleInitSW = Stopwatch.StartNew();
 #endif
 
         HarmonyInstance.PatchAll();
 
-        Spawning.Barcodes.Init();
+        Barcodes.Init();
 
-        MethodBase[] ctors = typeof(AssetPool).GetConstructors();
-
-        foreach (MethodBase mb in ctors)
-            Hook.OntoMethod(mb, CacheAssetPool);
 #if DEBUG
-        patchTimeSW.Stop();
-        Log($"Took {patchTimeSW.ElapsedMilliseconds}ms to find & patch {ctors.Length} methods (constructors)", ConsoleColor.DarkGray);
+        submoduleInitSW.Stop();
+        Log($"Took {submoduleInitSW.ElapsedMilliseconds}ms to find & patch {ctors.Length} methods (constructors)", ConsoleColor.DarkGray);
 #endif
 
         Task.Run(LogFromQueue);
@@ -110,12 +112,67 @@ public class JeviLib : MelonMod
     /// </summary>
     public override void OnInitializeMelon()
     {
+        try
+        {
+            StartForkIfNeeded();
+        }
+        catch(Exception ex)
+        {
+            Error("Exception while starting fork process: " + ex);
+            if (Utilities.IsPlatformQuest())
+            {
+                Log("----------------------------------------------------------------------------");
+                Log("HEY!!!!!! YOU! QUEST USER! JEVILIB V1.2.0 HAS IMPORTANT CHANGES YOU NEED TO MAKE!");
+                Log($"YOU NEED TO CONNECT YOUR HEADSET TO YOUR COMPUTER, DOWNLOAD THE JEVILFIXER EXECUTABLE FROM GITHUB!");
+                Log("YOU CAN DOWNLOAD IT HERE: https://");
+                Log("----------------------------------------------------------------------------");
+            }
+        }
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
         go.AddComponent<NeverCollect>();
         go.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
         GameObject.DontDestroyOnLoad(go);
         Instances.NeverCancel = go;
+    }
+
+    private static void StartForkIfNeeded()
+    {
+        bool unitasksNeedFixing = Utilities.AreUniTasksUnpatched();
+        bool enumeratorsNeedFixing = Utilities.AreCoroutinesUnpatched();
+
+        if (unitasksNeedFixing) 
+            Warn("UniTasks need fixing!");
+        if (enumeratorsNeedFixing)
+            Warn("MonoEnumeratorWrapper needs fixing!");
+
+        if (Utilities.IsPlatformQuest()) //todo: provide steps in error
+            throw new PlatformNotSupportedException("Android security does not allow forking processes. To restore UniTask/Coroutine functionality, you will need to connect your headset to a computer and run a program.");
+
+        if (unitasksNeedFixing || enumeratorsNeedFixing)
+            Log("Starting fork process to watch for fixes!");
+        else return;
+
+        string jevilSmFolder = Path.Combine(MelonUtils.UserDataDirectory, "JevilSM");
+        if (!Directory.Exists(jevilSmFolder)) Directory.CreateDirectory(jevilSmFolder);
+
+        string file = Path.Combine(jevilSmFolder, "JevilFixer.exe");
+        instance.MelonAssembly.Assembly.UseEmbeddedResource("Jevil.Resources.ForkProcess.exe", bytes => File.WriteAllBytes(file, bytes));
+        Log($"Wrote fork process to " + file);
+
+        Process fork = new Process()
+        {
+            StartInfo = new ProcessStartInfo()
+            {
+                Arguments = MelonUtils.UserDataDirectory,
+                CreateNoWindow = !JevilBuildInfo.Debug,
+                UseShellExecute = true,
+                FileName = file,
+            },
+        };
+        fork.Exited += (s, e) => { Log("Fork process exited. This is likely to properly fork itself.");  };
+        fork.Start();
+        Log($"Fork process started with PID {fork.Id}");
     }
 
     /// <summary>
@@ -205,11 +262,6 @@ public class JeviLib : MelonMod
 #if DEBUG
         Log("Found our instances in " + sw.ElapsedMilliseconds + "ms.");
 #endif
-    }
-
-    static void CacheAssetPool(AssetPool newPool)
-    {
-        Instances.allPools.Add(newPool);
     }
 
 #if DEBUG
@@ -503,6 +555,28 @@ public class JeviLib : MelonMod
         }
 
         this.standardJevilTokens.Clear();
+    }
+
+    private void TestSpawning()
+    {
+        Barcodes.SpawnAsync(JevilBarcode.MP5, Vector3.zero, Quaternion.identity);
+    }
+
+    private async void TestUniTaskAsync()
+    {
+        Log("Waiting 2sec");
+        await UniTask.Delay(Il2CppSystem.TimeSpan.FromSeconds(2), DelayType.UnscaledDeltaTime, PlayerLoopTiming.Update, new Il2CppSystem.Threading.CancellationToken());
+        Log("Hello after waiting 2sec!");
+        Log("Are we still on the main thread?");
+        GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Log("If we're still here, then YES we are on the main thread! UniTask and JeviLib did its job!");
+        Log("Testing UniTask patches. Waiting 3sec on each.");
+        await UniTask.Delay(3000, true);
+        Log("Check-in 1");
+        await UniTask.Delay(3000, DelayType.UnscaledDeltaTime);
+        Log("Check-in 2");
+        await UniTask.Delay(Il2CppSystem.TimeSpan.FromSeconds(3), true);
+        Log("Check-in 3! All checks passed!");
     }
 
     private void NotifiedLowRAM()
