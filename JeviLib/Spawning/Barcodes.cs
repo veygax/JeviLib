@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using Cysharp.Threading.Tasks;
 
 namespace Jevil.Spawning;
 
@@ -28,10 +29,11 @@ public static class Barcodes
         Stopwatch sw = Stopwatch.StartNew();
 #endif
         JevilBarcode[] codes = (JevilBarcode[])Enum.GetValues(typeof(JevilBarcode));
-        foreach ((JevilBarcode jcode, string code) tuple in codes.Zip(Barcodes_Array.value))
+        var codesExceptInvalid = codes.Take(codes.Length - 1);
+        foreach ((JevilBarcode jcode, string code) in codesExceptInvalid.Zip(Barcodes_Array.value))
         {
-            enumToBarcode[tuple.jcode] = tuple.code;
-            barcodeToEnum[tuple.code] = tuple.jcode;
+            enumToBarcode[jcode] = code;
+            barcodeToEnum[code] = jcode;
         }
 #if DEBUG
         sw.Stop();
@@ -56,42 +58,12 @@ public static class Barcodes
     /// <summary>
     /// Converts an asset barcode string to a <see cref="JevilBarcode"/> enum.
     /// </summary>
-    /// <param name="barcodeStr"></param>
+    /// <param name="barcodeStr">A barcode string</param>
     /// <returns></returns>
-    public static JevilBarcode ToJevilBarcode(string barcodeStr) => barcodeToEnum[barcodeStr];
-
-    /// <summary>
-    /// Retrieves the AssetPool for a given asset.
-    /// </summary>
-    /// <param name="jBarcode">The JeviLib barcode enum.</param>
-    /// <returns>An AssetPool if it exists, or <see langword="null"/> if the pools are not yet initialized or the pool wasn't found.</returns>
-    public static AssetPool ToAssetPool(JevilBarcode jBarcode)
+    public static JevilBarcode ToJevilBarcode(string barcodeStr)
     {
-        if (AssetSpawner._instance == null) return null;
-
-        string barcode = ToBarcodeString(jBarcode);
-        return ToAssetPool(barcode);
-    }
-
-    /// <summary>
-    /// Converts a barcode string to an asset pool.
-    /// </summary>
-    /// <param name="barcodeId">The barcode string of the asset you want to get the AssetPool of.</param>
-    /// <returns>An <see cref="AssetPool"/> with the barcode provided.</returns>
-    public static AssetPool ToAssetPool(string barcodeId)
-    {
-        if (barcodeStrToPool.TryGetValue(barcodeId, out AssetPool assetPool)) return assetPool;
-        // Implicit else (if ^ returns true, v will not run)
-
-        PopulateDictionary();
-
-        // probably shit code
-        if (barcodeStrToPool.TryGetValue(barcodeId, out assetPool)) return assetPool;
-
-#if DEBUG
-        JeviLib.Warn($"Asset Barcode '{barcodeId}' is not found in BONELAB's AssetSpawner instance!");
-#endif
-        return assetPool;   
+        if (barcodeToEnum.TryGetValue(barcodeStr, out JevilBarcode jBarcode)) return jBarcode;
+        return JevilBarcode.INVALID;
     }
 
     /// <summary>
@@ -127,10 +99,10 @@ public static class Barcodes
     /// <param name="barcodeToSpawn">A <see cref="JevilBarcode"/> corresponding to a spawnable.</param>
     /// <param name="pos">The worldspace position to spawn the object at.</param>
     /// <param name="rot">The worldspace rotation to spawn the object with.</param>
-    public static void Spawn(JevilBarcode barcodeToSpawn, Vector3 pos, Quaternion rot)
+    public static UniTask<AssetPoolee> SpawnAsync(JevilBarcode barcodeToSpawn, Vector3 pos, Quaternion rot)
     {
         Spawnable spawnable = ToSpawnable(barcodeToSpawn);
-        AssetSpawner.Spawn(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+        return AssetSpawner.SpawnAsync(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
     }
 
     private static void PopulateDictionary()

@@ -47,6 +47,13 @@
     <Reference Include="Facepunch.Steamworks.Win64">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\Facepunch.Steamworks.Win64.dll</HintPath>
     </Reference>
+    <Reference Include="Il2Cpp">
+      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Dependencies\SupportModules\Il2Cpp.dll</HintPath>
+    </Reference>
+    <Reference Include="Il2CppSystem.Xml.Linq, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Managed\Il2CppSystem.Xml.Linq.dll</HintPath>
+    </Reference>
     <Reference Include="MelonLoader">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\MelonLoader.dll</HintPath>
     </Reference>
@@ -133,9 +140,7 @@
     <Compile Include="JevilBuildInfo.cs" />
     <Compile Include="JeviLib.cs" />
     <Compile Include="Patching\FixSocketAsyncEventArgs.cs" />
-    <Compile Include="Patching\Ungovernable.cs" />
-    <Compile Include="Patching\UngovernableAttribute.cs" />
-    <Compile Include="Patching\UngovernableType.cs" />
+    <Compile Include="Patching\UniTasks.cs" />
     <Compile Include="Prefs\PreferencesRegisterChildren.cs" />
     <Compile Include="Prefs\PreferencesFile.cs" />
     <Compile Include="Spawning\Barcodes.cs" />
@@ -165,8 +170,6 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="Instances.cs" />
     <Compile Include="Spawning\Ammo.cs" />
-    <Compile Include="Spawning\ZombieType.cs" />
-    <Compile Include="Spawning\Zombies.cs" />
     <Compile Include="Tweening\AudioTween.cs" />
     <Compile Include="Tweening\GenericFloatTween.cs" />
     <Compile Include="Tweening\GenericTween.cs" />
@@ -196,6 +199,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\EnemyConfigs.bundle" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\ForkProcess.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

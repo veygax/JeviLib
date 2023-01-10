@@ -1,16 +1,11 @@
-﻿using BoneLib.Nullables;
-using SLZ.Combat;
-using System;
+﻿using Jevil;
+using BoneLib.Nullables;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using SLZ.Marrow.Data;
-using Harmony;
-using SLZ;
-using SLZ.Marrow.Pool;
 using SLZ.Bonelab;
+using SLZ.Marrow.Pool;
+using System.Threading.Tasks;
 
 namespace Jevil.Spawning;
 
@@ -19,13 +14,13 @@ namespace Jevil.Spawning;
 /// </summary>
 public static class Ammo
 {
-    static readonly Dictionary<Weight, AssetPool> weightPools = new(3);
+    static readonly Dictionary<Weight, Spawnable> spawnableWeights = new(3);
 
     internal static void Init()
     {
-        weightPools[Weight.LIGHT] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_LIGHT);
-        weightPools[Weight.MEDIUM] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_MEDIUM);
-        weightPools[Weight.HEAVY] = Barcodes.ToAssetPool(JevilBarcode.AMMO_BOX_HEAVY);
+        spawnableWeights[Weight.LIGHT] = Barcodes.ToSpawnable(JevilBarcode.AMMO_BOX_LIGHT);
+        spawnableWeights[Weight.MEDIUM] = Barcodes.ToSpawnable(JevilBarcode.AMMO_BOX_MEDIUM);
+        spawnableWeights[Weight.HEAVY] = Barcodes.ToSpawnable(JevilBarcode.AMMO_BOX_HEAVY);
     }
 
     /// <summary>
@@ -35,7 +30,7 @@ public static class Ammo
     /// <param name="ammoCount">The amount of ammo that the box holds.</param>
     /// <param name="pos">The position to spawn the ammo box at.</param>
     /// <returns>An inactive spawned ammo box.</returns>
-    public static GameObject Spawn(Weight ammoWgt, int ammoCount, Vector3 pos) => Spawn(ammoWgt, ammoCount, pos, Quaternion.identity);
+    public static Task<GameObject> Spawn(Weight ammoWgt, int ammoCount, Vector3 pos) => Spawn(ammoWgt, ammoCount, pos, Quaternion.identity);
 
     /// <summary>
     /// Spawns an ammo box of weight <paramref name="ammoWgt"/> that gives the player <paramref name="ammoCount"/> ammo of that weight.
@@ -45,13 +40,14 @@ public static class Ammo
     /// <param name="pos">The position to spawn the ammo box at.</param>
     /// <param name="rot"> The rotation to assign the ammo box.</param>
     /// <returns>An inactive spawned ammo box.</returns>
-    public static GameObject Spawn(Weight ammoWgt, int ammoCount, Vector3 pos, Quaternion rot)
+    public static async Task<GameObject> Spawn(Weight ammoWgt, int ammoCount, Vector3 pos, Quaternion rot)
     {
-        if (!weightPools.TryGetValue(ammoWgt, out var pool) || pool == null) Init(); // yep
-        
-        GameObject spawnedAmmo = weightPools[ammoWgt].Spawn(pos, rot, null, false).GetAwaiter().GetResult().gameObject;
+        if (!spawnableWeights.TryGetValue(ammoWgt, out var spawnable) || spawnable.WasCollected || spawnable == null) Init(); // yep
+
+
+        AssetPoolee spawnedAmmo = await NullableMethodExtensions.PoolManager_SpawnAsync(spawnableWeights[ammoWgt], pos, rot);
         AmmoPickup pickup = spawnedAmmo.GetComponentInChildren<AmmoPickup>();
         pickup.ammoCount = ammoCount;
-        return spawnedAmmo;
+        return spawnedAmmo.gameObject;
     }
 }

@@ -520,14 +520,14 @@ public static class Extensions
 
     /// <summary>
     /// <i>Assuming the given barcode represents a spawnable</i>, spawns an instance of whatever the barcode represents.
-    /// <para>Shortcut to <see cref="Barcodes.Spawn(JevilBarcode, Vector3, Quaternion)"/></para>
+    /// <para>Shortcut to <see cref="Barcodes.SpawnAsync(JevilBarcode, Vector3, Quaternion)"/></para>
     /// </summary>
     /// <param name="spawnableBarcode">A barcode. Assumed to represent a spawnable.</param>
     /// <param name="position">Worldspace position</param>
     /// <param name="rotation">Worldspace rotation</param>
     public static void Spawn(this JevilBarcode spawnableBarcode, Vector3 position, Quaternion rotation)
     {
-        Barcodes.Spawn(spawnableBarcode, position, rotation);
+        Barcodes.SpawnAsync(spawnableBarcode, position, rotation);
     }
 
     /// <summary>
@@ -575,79 +575,5 @@ public static class Extensions
     public static void Dupe(this AssetPoolee asspoole, Vector3 pos, Quaternion rot)
     {
         asspoole.spawnableCrate.Spawn(pos, rot);
-    }
-
-    /// <summary>
-    /// "Converts" a <see cref="UniTask{T}"/> to a <see cref="Task{TResult}"/> that you, the programmer in the normal managed domain <i>(fuck you il2cpp)</i> can <see langword="await"/>.
-    /// </summary>
-    /// <typeparam name="T">The UniTask type.</typeparam>
-    /// <param name="uniTask">Any UniTask.</param>
-    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
-    /// <remarks>This doesn't do a conversion so much as it repeatedly <see langword="await"/>s <see cref="Task.Yield"/> while the <paramref name="uniTask"/> remains uncompleted, before returning its result.</remarks>
-    /// <exception cref="ObjectDisposedException">The UniTask was disposed in the IL2CPP domain. This may be thrown, but I'm not sure.</exception>
-    /// <exception cref="Exception">The UniTask threw an exception in the IL2CPP domain. An exception of any type may be thrown, but I'm not sure.</exception>
-    public static async Task<T> ToTask<T>(this UniTask<T> uniTask)
-    {
-        //todo: check if this works
-        UniTask<T>.Awaiter awaiter = uniTask.GetAwaiter();
-        try
-        {
-            while (!awaiter.IsCompleted) await Task.Yield();
-            return awaiter.GetResult();
-        }
-        finally
-        {
-#if DEBUG
-            JeviLib.Error($"Exception while awaiting a UniTask of type {typeof(T).FullName}");
-#endif
-        }
-    }
-
-    /// <summary>
-    /// "Converts" a <see cref="UniTask"/> to a <see cref="Task"/> that you, the programmer in the normal managed domain <i>(fuck you il2cpp)</i> can <see langword="await"/>.
-    /// </summary>
-    /// <param name="uniTask">Any UniTask.</param>
-    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
-    /// <remarks>This doesn't do a conversion so much as it repeatedly <see langword="await"/>s <see cref="Task.Yield"/> while the <paramref name="uniTask"/> remains uncompleted, before returning its result.</remarks>
-    public static async Task ToTask(this UniTask uniTask)
-    {
-        //todo: check if this works
-        UniTask.Awaiter awaiter = uniTask.GetAwaiter();
-        try
-        {
-            while (!awaiter.IsCompleted) await Task.Yield();
-        }
-        finally
-        {
-#if DEBUG
-            JeviLib.Error($"Exception while awaiting a non-generic UniTask");
-#endif
-        }
-    }
-
-    /// <summary>
-    /// Allows a coroutine to yield while a UniTask is executing.
-    /// </summary>
-    /// <typeparam name="T">The UniTask type.</typeparam>
-    /// <param name="uniTask">Any UniTask.</param>
-    /// <param name="resultSetter">A callback that runs when </param>
-    /// <returns>An awaitable <see cref="Task{TResult}"/></returns>
-    /// <exception cref="ObjectDisposedException">The UniTask was disposed in the IL2CPP domain. This may be thrown, but I'm not sure.</exception>
-    /// <exception cref="Exception">The UniTask threw an exception in the IL2CPP domain. An exception of any type may be thrown, but I'm not sure.</exception>
-    public static IEnumerator CoroutineWait<T>(this UniTask<T> uniTask, Action<T> resultSetter)
-    {
-        //todo: check if this works
-        UniTask<T>.Awaiter awaiter = uniTask.GetAwaiter();
-        try
-        {
-            while (!awaiter.IsCompleted) yield return null;
-            resultSetter(awaiter.GetResult());
-        }
-        finally
-        {
-#if DEBUG
-            JeviLib.Error($"Exception while yielding for a UniTask of type {typeof(T).FullName}");
-#endif
-        }
     }
 }

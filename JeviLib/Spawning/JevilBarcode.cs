@@ -1222,4 +1222,8 @@ public enum JevilBarcode
     /// <br>Tags: Vehicle</br>
     /// </summary>
     GOKART,
+    /// <summary>
+    /// Invalid Barcode that doesn't correspond to anything
+    /// </summary>
+    INVALID = -1,
 }
