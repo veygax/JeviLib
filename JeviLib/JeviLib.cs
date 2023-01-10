@@ -123,7 +123,7 @@ public class JeviLib : MelonMod
                 Log("----------------------------------------------------------------------------");
                 Log("HEY!!!!!! YOU! QUEST USER! JEVILIB V1.2.0 HAS IMPORTANT CHANGES YOU NEED TO MAKE!");
                 Log($"YOU NEED TO CONNECT YOUR HEADSET TO YOUR COMPUTER, DOWNLOAD THE JEVILFIXER EXECUTABLE FROM GITHUB!");
-                Log("YOU CAN DOWNLOAD IT HERE: https://");
+                Log("YOU CAN DOWNLOAD IT HERE: https://github.com/extraes/JeviLib/releases/tag/2.0.0");
                 Log("----------------------------------------------------------------------------");
             }
         }
