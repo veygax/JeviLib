@@ -68,8 +68,8 @@ public class JeviLib : MelonMod
         Log("Functionality will remain in tact for the most part, however there will be extra log points to warn you if there is anything worrying about your usage of the library.");
         Log("You should only be using this build if you create code mods, and not if you simply use mods. Do not rely on the extra checks in this build, or require the use of a debug build for your production code.");
 
-        this.standardJevilTokens.Add(DebugDraw.Button("Hide JeviLib tween debugger buttons", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
-        this.standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); }));
+        this.standardJevilTokens.Add(DebugDraw.Button("Hide JeviLib debug tokens", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
+        this.standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); this.tweenTarget.GetComponent<Renderer>().material.shader = Shader.Find(Const.UrpLitName); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.one, 1); }));

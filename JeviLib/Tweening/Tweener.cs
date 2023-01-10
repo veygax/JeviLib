@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnhollowerBaseLib;
 using UnityEngine;
 
 namespace Jevil.Tweening;
@@ -20,8 +21,14 @@ public static class Tweener
         for (int i = tweens.Count - 1; i >= 0; i--)
         {
             TweenBase tween = tweens[i];
+            IntPtr ptr = IntPtr.Zero;
+            try
+            {
+                ptr = tween.CancelWith.Pointer;
+            }
+            catch { }
             // check using the equality operator because then it checks if its destroyed.
-            if (tween.CancelWith.INOC())
+            if (tween.CancelWith.INOC() || ptr == IntPtr.Zero)
             {
 #if DEBUG
                 JeviLib.Log($"Cancelling {tween.name}; Its corresponding UnityEngine.Object was destroyed or null.");
