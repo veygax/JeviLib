@@ -94,7 +94,6 @@ public class JeviLib : MelonMod
 
 #if DEBUG
         submoduleInitSW.Stop();
-        Log($"Took {submoduleInitSW.ElapsedMilliseconds}ms to find & patch {ctors.Length} methods (constructors)", ConsoleColor.DarkGray);
 #endif
 
         Task.Run(LogFromQueue);
