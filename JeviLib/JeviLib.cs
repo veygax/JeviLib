@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BoneLib;
@@ -120,11 +121,37 @@ public class JeviLib : MelonMod
             Error("Exception while starting fork process: " + ex);
             if (Utilities.IsPlatformQuest())
             {
-                Log("----------------------------------------------------------------------------");
-                Log("HEY!!!!!! YOU! QUEST USER! JEVILIB V1.2.0 HAS IMPORTANT CHANGES YOU NEED TO MAKE!");
-                Log($"YOU NEED TO CONNECT YOUR HEADSET TO YOUR COMPUTER, DOWNLOAD THE JEVILFIXER EXECUTABLE FROM GITHUB!");
-                Log("YOU CAN DOWNLOAD IT HERE: https://github.com/extraes/JeviLib/releases/tag/2.0.0");
-                Log("----------------------------------------------------------------------------");
+                Warn("Since you're on Quest, JeviLib will attempt a live-update of mod files");
+
+                string userDataFolder = MelonUtils.UserDataDirectory;
+                string jsmPath = Path.Combine(userDataFolder, "JevilSM");
+                string logPath = Path.Combine(jsmPath, "FixerLog.log");
+                string newSmPath = Path.Combine(jsmPath, "Il2Cpp.dll");
+                string il2SmPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Dependencies", "SupportModules", "Il2Cpp.dll");
+                string unitaskPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UniTask.dll");
+                string il2MscorlibPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "Il2Cppmscorlib.dll");
+                string unhollowerBasePath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UnhollowerBaseLib.dll");
+                if (!Directory.Exists(jsmPath)) Directory.CreateDirectory(jsmPath);
+
+                Log($"Current support module path: {il2SmPath}");
+                Log($"Going to write support module to: {newSmPath}");
+                Log($"UniTask assembly path: {unitaskPath}");
+                Log($"Unhollowed IL2CPP mscorlib assembly path: {il2MscorlibPath}");
+                Log($"UnhollowerBaseLib assembly path: {unhollowerBasePath}");
+
+                Log("Support module updating can now begin.");
+                Jevil.Patching.SupportModuleOverwriter.isQuest = Utilities.IsPlatformQuest(); // This could just be hardcoded false
+                Jevil.Patching.SupportModuleOverwriter.Log = (str) => Log("SupportModuleOverwriter: " + str);
+                Jevil.Patching.SupportModuleOverwriter.Error = Error;
+                Jevil.Patching.SupportModuleOverwriter.Execute(newSmPath, il2SmPath);
+                Log("Support module updating completed successfully.");
+
+                Log("UniTask modification can now begin.");
+                Jevil.Patching.UniTaskCeciler.Log = (str) => Log("UniTaskCeciler: " + str);
+                Jevil.Patching.UniTaskCeciler.Error = Error;
+                Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath);
+
+                Log("Critical mod files have been modified. It is recommended you restart your game.");
             }
         }
         // Initialize NeverCollect/NeverCancel for generic Tweens

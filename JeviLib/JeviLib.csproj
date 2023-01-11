@@ -64,6 +64,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Mono.Cecil.dll</HintPath>
     </Reference>
+    <Reference Include="Mono.Cecil.Rocks, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Mono.Cecil.Rocks.dll</HintPath>
+    </Reference>
     <Reference Include="SLZ.Marrow">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\SLZ.Marrow.dll</HintPath>
     </Reference>
@@ -159,6 +163,8 @@
     <Compile Include="Patching\Disable.cs" />
     <Compile Include="Patching\Hook.cs" />
     <Compile Include="Patching\Redirect.cs" />
+    <Compile Include="..\JevilForkedProcess\SupportModuleOverwriter.cs" Link="Patching\SupportModuleOverwriter.cs" />
+    <Compile Include="..\JevilForkedProcess\UniTaskCeciler.cs" Link="Patching\UniTaskCeciler.cs" />
     <Compile Include="Prefs\UnityDefaultColor.cs" />
     <Compile Include="Prefs\Pref.cs" />
     <Compile Include="Prefs\PrefEntries.cs" />
