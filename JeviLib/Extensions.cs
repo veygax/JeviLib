@@ -61,7 +61,7 @@ public static class Extensions
     /// </summary>
     /// <param name="t"></param>
     /// <returns>Whether or not a Transform is in the Hierarchy of a RigManager</returns>
-    public static bool IsChildOfRigManager(this Transform t) => InHierarchyOf(t, "[RigManager (Default Brett)]");
+    public static bool IsChildOfRigManager(this Transform t) => InHierarchyOf(t, Const.RigManagerName);
 
     /// <summary>
     /// literal foreach.
@@ -505,7 +505,11 @@ public static class Extensions
     /// <returns></returns>
     public static bool INOC(this UnityEngine.Object obj)
     {
-        return obj is null || obj.WasCollected || obj == null;
+        IntPtr ptr = IntPtr.Zero;
+        try { ptr = obj.Pointer; }
+        catch { }
+        // This shit better fucking work this time
+        return obj is null || ptr == IntPtr.Zero || obj.WasCollected || obj == null;
     }
 
     /// <summary>
