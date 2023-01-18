@@ -20,12 +20,13 @@
     <DebugType>full</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;JEVIL_MELONMOD</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <DocumentationFile>bin\Debug\JeviLib.xml</DocumentationFile>
     <RegisterForComInterop>false</RegisterForComInterop>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -44,15 +45,8 @@
     <Reference Include="BoneLib">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\Mods\BoneLib.dll</HintPath>
     </Reference>
-    <Reference Include="Facepunch.Steamworks.Win64">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\Facepunch.Steamworks.Win64.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2Cpp">
-      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Dependencies\SupportModules\Il2Cpp.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2CppSystem.Xml.Linq, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Managed\Il2CppSystem.Xml.Linq.dll</HintPath>
+    <Reference Include="Il2CppPublicized">
+      <HintPath>..\References\Il2CppPublicized.dll</HintPath>
     </Reference>
     <Reference Include="MelonLoader">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\MelonLoader.dll</HintPath>
@@ -66,7 +60,7 @@
     </Reference>
     <Reference Include="Mono.Cecil.Rocks, Version=0.10.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Documents\Unity\MLTest\Build\MelonLoader\Mono.Cecil.Rocks.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Mono.Cecil.Rocks.dll</HintPath>
     </Reference>
     <Reference Include="SLZ.Marrow">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\SLZ.Marrow.dll</HintPath>
@@ -97,6 +91,9 @@
     </Reference>
     <Reference Include="Unity.XR.OpenVR">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\Unity.XR.OpenVR.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.AndroidJNIModule">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\UnityEngine.AndroidJNIModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AssetBundleModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -144,6 +141,7 @@
     <Compile Include="JevilBuildInfo.cs" />
     <Compile Include="JeviLib.cs" />
     <Compile Include="Patching\FixSocketAsyncEventArgs.cs" />
+    <Compile Include="Patching\QuestEnumeratorRewrapper.cs" />
     <Compile Include="Patching\UniTasks.cs" />
     <Compile Include="Prefs\PreferencesRegisterChildren.cs" />
     <Compile Include="Prefs\PreferencesFile.cs" />
@@ -163,7 +161,6 @@
     <Compile Include="Patching\Disable.cs" />
     <Compile Include="Patching\Hook.cs" />
     <Compile Include="Patching\Redirect.cs" />
-    <Compile Include="..\JevilForkedProcess\SupportModuleOverwriter.cs" Link="Patching\SupportModuleOverwriter.cs" />
     <Compile Include="..\JevilForkedProcess\UniTaskCeciler.cs" Link="Patching\UniTaskCeciler.cs" />
     <Compile Include="Prefs\UnityDefaultColor.cs" />
     <Compile Include="Prefs\Pref.cs" />
