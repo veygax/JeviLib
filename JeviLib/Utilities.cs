@@ -5,12 +5,13 @@ using MelonLoader;
 using PuppetMasta;
 using SLZ.Interaction;
 using SLZ.Marrow.Pool;
-using Steamworks;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -41,22 +42,6 @@ public static class Utilities
     public static bool IsSteamVersion()
     {
         return UnityEngine.Application.dataPath.EndsWith("BONELAB_Steam_Windows64_Data");
-    }
-
-    /// <summary>
-    /// Looks for <paramref name="barcode"/> 
-    /// </summary>
-    /// <param name="barcode">Barcode of the pool's crate</param>
-    /// <returns><see langword="null"/> if the pool was not found, otherwise the prefab.</returns>
-    public static AssetPool GetPrefabOfPool(string barcode)
-    {
-        //todo: check to see if this is the right way to check if a crate matches a barcode
-        foreach (AssetPool pool in Instances.AllPools)
-        {
-            if (pool._crate.Barcode._id == barcode) return pool;
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -520,32 +505,6 @@ public static class Utilities
     }
 
     /// <summary>
-    /// Try-catches a get request for the user's Steam ID so you don't have to! This method will fail if Steamworks isn't yet initialized or if the game is an Oculus copy.
-    /// </summary>
-    /// <param name="steamID">A <see cref="SteamId"/> that will be filled in with the result of <see cref="SteamClient.SteamId"/>'s getter. Will be <see langword="default"/> if the call fails.</param>
-    /// <returns>Whether or not the call was successful.</returns>
-    /// <remarks>Also useful for CMaps because Steamworks is in Asm C# Firstpass, so the classes containing the steamworks methods aren't present, as well as the ripper not putting method stubs in dummy classes.</remarks>
-    public static bool TryGetSteamID(out SteamId steamID)
-    {
-        try
-        {
-            steamID = SteamClient.SteamId;
-            return steamID != default;
-        }
-        catch
-#if DEBUG
-            (Exception ex)
-#endif
-        {
-#if DEBUG
-            JeviLib.Warn("Failed to get Steam ID due to exception: " + ex.Message);
-#endif
-            steamID = default;
-            return false;
-        }   
-    }
-
-    /// <summary>
     /// Focuses something in a UnityExplorer inspector, if it is installed (and if this is in Debug mode).
     /// </summary>
     /// <param name="obj">Any object, can be a <see cref="Component"/>, <see cref="GameObject"/>, or even a normal Mono domain thing.</param>
@@ -645,17 +604,27 @@ public static class Utilities
 
     /// <summary>
     /// Returns whether yielding WaitForSeconds/WaitForSecondsRealtime/another coroutine will work as expected, or if it will only yield for one frame.
-    /// <br>JeviLib v1.2.0 restores expected functionality by replacing the IL2CPP support module (in this context "patching" it).</br>
+    /// <br>JeviLib v2.0.0 restores expected functionality by replacing the IL2CPP support module (in this context "patching" it) on PCVR for better performance, but using a "proxy" patch for Quest (due to some kind of point error).</br>
     /// </summary>
     /// <returns><see langword="true"/> if yielding always waits only one frame. <see langword="false"/> if yielding works as expected (e.g. if the support module has been replaced).</returns>
-    public static bool AreCoroutinesUnpatched()
+    public static bool CoroutinesNeedPatch()
     {
         if (coroutinesNeedPatch.HasValue) return coroutinesNeedPatch.Value;
+        if (IsPlatformQuest())
+        {
+            coroutinesNeedPatch = false;
+            return coroutinesNeedPatch.Value;
+        }
 
-        Assembly supportModule = AppDomain.CurrentDomain.GetAssemblies().First(asm => !asm.IsDynamic && asm.Location.Contains("SupportModules") && asm.Location.EndsWith(@"Il2Cpp.dll"));
+        Assembly supportModule = AppDomain.CurrentDomain.GetAssemblies().First(asm => !asm.IsDynamic && asm.Location.ToLower().Contains("support") && asm.Location.EndsWith(@"Il2Cpp.dll"));
         Type monoEnumeratorWrapper = supportModule.GetType("MelonLoader.Support.MonoEnumeratorWrapper");
-        FieldInfo enumeratorWaitTimeField = monoEnumeratorWrapper.GetField("waitedTime", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo enumeratorWaitTimeField = monoEnumeratorWrapper.GetField("waitTime", Const.AllBindingFlags);
         coroutinesNeedPatch = enumeratorWaitTimeField == null;
+#if DEBUG
+        JeviLib.Log($"Defined fields in {monoEnumeratorWrapper.FullName}");
+        foreach (FieldInfo field in monoEnumeratorWrapper.GetFields(Const.AllBindingFlags))
+            JeviLib.Log($"{field.FieldType.Name} {field.Name}");
+#endif
         return coroutinesNeedPatch.Value;
     }
 
@@ -664,12 +633,51 @@ public static class Utilities
     /// <br>JeviLib v1.2.0 restores <see langword="await"/> functionality on UniTasks by modifying ("patching") <see cref="Cysharp.Threading.Tasks.UniTask.Awaiter"/> and <see cref="Cysharp.Threading.Tasks.UniTask{T}.Awaiter"/> to make them implement INotifyCompletion.</br>
     /// </summary>
     /// <returns><see langword="true"/> if UniTasks are unable to be <see langword="await"/>ed by mod code. <see langword="false"/> if UniTask.dll has already been patched.</returns>
-    public static bool AreUniTasksUnpatched()
+    public static bool UniTasksNeedPatch()
     {
         if (uniTasksNeedPatch.HasValue) return uniTasksNeedPatch.Value;
 
-        MemberInfo[] awaiterInterfaceMethods = typeof(Cysharp.Threading.Tasks.UniTask.Awaiter).GetMethods().Where(m => m.Name == "OnCompleted").ToArray();
-        uniTasksNeedPatch = awaiterInterfaceMethods.Length == 1;
+        Type[] implementedInterfaces = typeof(Cysharp.Threading.Tasks.UniTask.Awaiter).GetInterfaces();
+        uniTasksNeedPatch = implementedInterfaces.Length == 0;
+#if DEBUG
+        JeviLib.Log($"UniTask Awaiter implements {implementedInterfaces.Length} interfaces. Fix needs application? {uniTasksNeedPatch}");
+#endif
         return uniTasksNeedPatch.Value;
+    }
+
+    /// <summary>
+    /// Restarts the game.
+    /// Note: on Android this just quits the game, as the methods necessary to perform a full restart have been stripped.
+    /// </summary>
+    public static void RestartGame()
+    {
+        if (IsPlatformQuest())
+        {
+            Application.Quit();
+            return;
+        }
+
+        Process myProc = Process.GetCurrentProcess();
+        new Process()
+        {
+            StartInfo = new ProcessStartInfo()
+            {
+                FileName = Application.dataPath.Replace("_Data", ".exe"), // this path should only be hit on win, i think im good
+                WorkingDirectory = MelonUtils.BaseDirectory,
+            },
+        }.Start();
+        Application.Quit();
+    }
+
+    /// <summary>
+    /// Restarts (or quits if on Android) the game if JevilFixer patches are unapplied (if coroutines still need fixing or UniTasks still need fixing)
+    /// </summary>
+    public static void RestartIfPatchesUnapplied()
+    {
+        if (UniTasksNeedPatch() || CoroutinesNeedPatch())
+        {
+            JeviLib.Log("This game needs patches applied - restarting!");
+            RestartGame();
+        }
     }
 }
