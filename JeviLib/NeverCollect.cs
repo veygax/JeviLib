@@ -18,7 +18,7 @@ public class NeverCollect : MonoBehaviour
     /// An IL2CPP object that holds a reference to another IL2CPP object, preventing the IL2 obj's from being collected.
     /// <para>This <see cref="NeverCollect"/> holds a reference to itself, preventing it from being colelcted.</para>
     /// </summary>
-    public Il2CppSystem.Collections.Generic.List<MonoBehaviour> neverCollect = new();
+    public Il2CppSystem.Collections.Generic.List<Il2CppSystem.Object> neverCollect = new();
 
     static bool instantiated = false;
 
@@ -29,8 +29,12 @@ public class NeverCollect : MonoBehaviour
     /// <exception cref="ObjectDisposedException"></exception>
     public NeverCollect(IntPtr ptr) : base(ptr)
     {
-        if (instantiated) throw new ObjectDisposedException("NeverCollect should never be instantiated twice!");
+#if DEBUG
+        JeviLib.Log($"New {nameof(NeverCollect)} created. Inital check says this is{(instantiated ? "" : " not")} the first.");
+#endif
+        if (instantiated) throw new ObjectDisposedException($"{nameof(NeverCollect)} should never be instantiated twice!");
         neverCollect.Add(this);
+        neverCollect.Add(neverCollect); // memory leak cuz fuck you
         instantiated = true;
     }
 }

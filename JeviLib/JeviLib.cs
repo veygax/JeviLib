@@ -6,11 +6,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BoneLib;
-using BoneLib.Nullables;
 using BoneLib.RandomShit;
 using Cysharp.Threading.Tasks;
 using Jevil.IMGUI;
@@ -19,8 +17,6 @@ using Jevil.Spawning;
 using Jevil.Tweening;
 using MelonLoader;
 using MelonLoader.Assertions;
-using SLZ.Data;
-using SLZ.Marrow.Pool;
 using SLZ.Utilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -69,11 +65,7 @@ public class JeviLib : MelonMod
         Stopwatch sw = Stopwatch.StartNew();
         
 #if DEBUG
-        Log("This version of " + nameof(JeviLib) + " has been built with the DEBUG compiler flag!");
-        Log("Functionality will remain in tact for the most part, however there will be extra log points to warn you if there is anything worrying about your usage of the library.");
-        Log("You should only be using this build if you create code mods, and not if you simply use mods. Do not rely on the extra checks in this build, or require the use of a debug build for your production code.");
-
-        this.standardJevilTokens.Add(DebugDraw.Button("Hide JeviLib debug tokens", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
+        this.standardJevilTokens.Add(DebugDraw.Button("Remove JeviLib Debug tokens", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
         this.standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); this.tweenTarget.GetComponent<Renderer>().material.shader = Shader.Find(Const.UrpLitName); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
@@ -104,7 +96,7 @@ public class JeviLib : MelonMod
         Hooking.OnLevelInitialized += (li) => { OnSceneWasInitialized(-1, li.barcode); };
 
         sw.Stop();
-        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
+        LoggerInstance.Msg(ConsoleColor.Blue, $"Pre-initialized {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
@@ -112,6 +104,14 @@ public class JeviLib : MelonMod
     /// </summary>
     public override void OnInitializeMelon()
     {
+        Stopwatch sw = Stopwatch.StartNew();
+
+#if DEBUG
+        Log("This version of " + nameof(JeviLib) + " has been built with the DEBUG compiler flag!");
+        Log("Functionality will remain in tact for the most part, however there will be extra log points to warn you if there is anything worrying about your usage of the library.");
+        Log("You should only be using this build if you create code mods, and not if you simply use mods. Do not rely on the extra checks in this build, or require the use of a debug build for your production code.");
+#endif
+
         try
         {
             StartForkIfNeeded();
@@ -137,13 +137,11 @@ public class JeviLib : MelonMod
                 string unitaskPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UniTask.dll");
                 string il2mscorlibPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "Il2Cppmscorlib.dll");
                 string unhollowerBasePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnhollowerBaseLib.dll");
-                if (!Directory.Exists(jsmPath)) Directory.CreateDirectory(jsmPath);
-
-                Log($"Current support module path: {il2SmPath}");
-                Log($"Going to write support module to: {newSmPath}");
-                Log($"UniTask assembly path: {unitaskPath}");
-                Log($"Unhollowed IL2CPP mscorlib assembly path: {il2MscorlibPath}");
-                Log($"UnhollowerBaseLib assembly path: {unhollowerBasePath}");
+                if (!Directory.Exists(jsmPath))
+                {
+                    Log("Created JevilSM directory: " + jsmPath);
+                    Directory.CreateDirectory(jsmPath);
+                }
 
                 Log("Support module updating can now begin.");
                 Log("JeviLib custom support module does not work properly on Android. A harmony based solution has been implemented instead");
@@ -162,10 +160,14 @@ public class JeviLib : MelonMod
         
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
-        go.AddComponent<NeverCollect>();
+        NeverCollect nc = go.AddComponent<NeverCollect>();
         go.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
+        nc.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
         GameObject.DontDestroyOnLoad(go);
+        GameObject.DontDestroyOnLoad(nc);
         Instances.NeverCancel = go;
+
+        LoggerInstance.Msg(ConsoleColor.Blue, $"Completed initialization of {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
     private static void StartForkIfNeeded()
@@ -197,7 +199,7 @@ public class JeviLib : MelonMod
             StartInfo = new ProcessStartInfo()
             {
                 Arguments = MelonUtils.UserDataDirectory,
-                CreateNoWindow = !JevilBuildInfo.Debug,
+                CreateNoWindow = !JevilBuildInfo.DEBUG,
                 UseShellExecute = true,
                 FileName = file,
             },
@@ -264,10 +266,12 @@ public class JeviLib : MelonMod
         Instances.SFXMixer =
             Instances.Audio_Manager.audioMixer.FindMatchingGroups("SFX").First();
         // Separate cameras because it's better this way, I think. It's more distinguishable even if it requires two lines to keep the two "in sync"
-        Instances.Cameras =
+        Instances.RigCameras =
             GameObject.FindObjectsOfType<Camera>().Where(c => c.transform.IsChildOfRigManager()).ToArray();
         Instances.SpectatorCam =
-            Instances.Cameras.First(c => c.name == "Spectator Camera");
+            Instances.RigCameras.FirstOrDefault(c => c.name == "Spectator Camera");
+        Instances.InHeadsetCam =
+            Instances.RigCameras.FirstOrDefault(c => c.name == "Head");
 
         Transform pHead = Player.playerHead;
 
@@ -480,12 +484,15 @@ public class JeviLib : MelonMod
 
     private void PopulateDictionary(Assembly[] section)
     {
+        string currAsmTitle = string.Empty;
         try
         {
             for (int i = 0; i < section.Length; i++)
             {
                 Assembly currentAsm = section[i];
+                currAsmTitle = currentAsm.FullName;
                 if (currentAsm.IsDynamic) continue; // avoid exceptions from Redirect and Hooking
+                
                 Type[] types = currentAsm.GetTypes();
 
                 IEnumerable<string> namespaces = types.Select(t => t.Namespace).Distinct();
@@ -499,16 +506,15 @@ public class JeviLib : MelonMod
                         namespaceAssemblies.TryAdd(ns ?? "", asms);
                     }
                     asms.Add(currentAsm);
-#if DEBUG
-                    // dont need this log statement anymore, namespace collection works fine.
-                    //QueueLog($"Associating namespace {ns ?? "<none>"} with assembly {currentAsm.GetName().Name}. It is associated with {asms.Count} assembly(ies) now.");
-#endif
                 }
             }
         }
         catch (Exception ex)
         {
-            Error(ex);
+#if DEBUG
+            // apparently jevilib is throwing System.TypeLoadException and IDFK why
+            Error("Caught exception while populating namespace dictionary for assembly " + currAsmTitle, ex);
+#endif
         }
     }
 
@@ -568,6 +574,7 @@ public class JeviLib : MelonMod
     internal static void Warn(object obj) => instance.LoggerInstance.Warning(obj?.ToString() ?? "null");
     internal static void Error(string str) => instance.LoggerInstance.Error(str);
     internal static void Error(object obj) => instance.LoggerInstance.Error(obj?.ToString() ?? "null");
+    internal static void Error(string str, Exception ex) => instance.LoggerInstance.Error(str ?? "null", ex);
 
     #endregion
 

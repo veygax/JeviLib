@@ -42,13 +42,19 @@ public static class Instances
 
 
     /// <summary>
-    /// A cached reference to the spectator camera, regardless of if it is the active camera (Use <c><see cref="Camera.main"/></c> for that)
+    /// A cached reference to the spectator camera, regardless of if it is the active camera outputting to flatscreen (Use <c><see cref="Camera.main"/></c> for that)
+    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelInitialized"/> is called.</para>
     /// </summary>
     public static Camera SpectatorCam { get; internal set; }
     /// <summary>
+    /// A cached reference to the camera currently rendering to the headset.
+    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelInitialized"/> is called.</para>
+    /// </summary>
+    public static Camera InHeadsetCam { get; internal set; }
+    /// <summary>
     /// Every camera in the hierarchy of the rig manager.
     /// </summary>
-    public static Camera[] Cameras { get; internal set; }
+    public static Camera[] RigCameras { get; internal set; }
 
     /// <summary>
     /// The currently operating Audio_Manager.
