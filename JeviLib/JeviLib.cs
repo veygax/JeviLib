@@ -104,7 +104,7 @@ public class JeviLib : MelonMod
         Hooking.OnLevelInitialized += (li) => { OnSceneWasInitialized(-1, li.barcode); };
 
         sw.Stop();
-        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.Version}{(JevilBuildInfo.Debug ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
+        this.LoggerInstance.Msg(ConsoleColor.Blue, $"Initialized {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
