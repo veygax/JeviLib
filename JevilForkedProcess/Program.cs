@@ -28,13 +28,19 @@ internal class Program
         if (args.Length == 0)
         {
             Console.Error.WriteLine("Need path to ML UserData folder!");
-            return;
+            Console.WriteLine("Paste/drag in the path to your MelonLoader UserData folder!");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write(": ");
+            Console.ResetColor();
+            args = new string[] {
+                Console.ReadLine().Trim().Trim('"'),
+            };
         }
 
-        System.Threading.Thread.Sleep(50); // Wait for parent to close
+        // Autofork if process is BONELAB
         Process me = Process.GetCurrentProcess();
         Process parent = ParentProcessUtilities.GetParentProcess();
-        if (parent.ProcessName.Contains("BONELAB"))
+        if (parent != null && parent.ProcessName.Contains("BONELAB"))
         {
             Console.WriteLine("Current process is a child of BONELAB! Starting new process to fork.");
             Process newProc = new Process()
@@ -55,6 +61,7 @@ internal class Program
             Environment.Exit(0);
         }
 
+
 #if DEBUG
         if (!Debugger.IsAttached) Debugger.Launch();
 #endif
@@ -72,17 +79,12 @@ internal class Program
         logFile = File.CreateText(logPath);
         Log("Logging to " + logPath);
 
-        Log($"Current support module path: {il2SmPath}");
-        Log($"Going to write support module to: {newSmPath}");
-        Log($"UniTask assembly path: {unitaskPath}");
-        Log($"Unhollowed IL2CPP mscorlib assembly path: {il2MscorlibPath}");
-        Log($"UnhollowerBaseLib assembly path: {unhollowerBasePath}");
+        Log($"Current parent process: {parent?.ProcessName ?? "<none>"}");
 
         WaitForBonelabExit();
         Log("BONELAB exited, continuing execution.");
 
         Log("Support module updating can now begin.");
-        Jevil.Patching.SupportModuleOverwriter.isQuest = !RuntimeInformation.IsOSPlatform(OSPlatform.Windows); // This could just be hardcoded false
         Jevil.Patching.SupportModuleOverwriter.Log = Log;
         Jevil.Patching.SupportModuleOverwriter.Error = Error;
         Jevil.Patching.SupportModuleOverwriter.Execute(newSmPath, il2SmPath);
@@ -91,7 +93,7 @@ internal class Program
         Log("UniTask modification can now begin.");
         Jevil.Patching.UniTaskCeciler.Log = Log;
         Jevil.Patching.UniTaskCeciler.Error = Error;
-        Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath);
+        Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath, userDataFolder);
         Log("Successfully replaced IL2CPP support module and patched UniTask.dll!");
         Log("For users: You should now be able to use any mod that requires JeviLib v2.0.0 or higher");
         Log("For developers: Your coroutines can now yield other coroutines or yield WaitForSeconds/WaitForSecondsRealtime, and it will work as expected. You can also await a UniTask and UniTask<T> from a Task");

@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,10 +14,14 @@ namespace Jevil.Patching;
 
 internal static class SupportModuleOverwriter
 {
-    public static bool isQuest;
     public static Action<string> Log;
     public static Action<string> Error;
 
+    /// <summary>
+    /// SUMMARYING A PRIVATE MEMBER, I KNOW
+    /// <br>CURRSMPATH IS IMPLICITLY INSIDE [BASEDIR]/USERDATA/JEVILSM</br>
+    /// <br>IF THIS IS WRONG, THE PROGRAM WILL FAIL EXECUTION</br>
+    /// </summary>
     public static void Execute(string newSmPath, string currSmPath)
     {
 #if DEBUG
@@ -24,6 +29,10 @@ internal static class SupportModuleOverwriter
             throw new NullReferenceException("Logging callbacks cannot be null.");
 #endif
 
+        Log($"Current support module path: {currSmPath}");
+        Log($"Going to write support module to: {newSmPath}");
+
+        string jsmFolder = Path.GetDirectoryName(newSmPath);
         string backupsFolder = Path.Combine(Path.GetDirectoryName(newSmPath), "Backups");
         string backupFile = Path.Combine(backupsFolder, "Il2Cpp.bak.dll");
         using (FileStream dllWriteStream = File.Create(newSmPath))
@@ -34,6 +43,12 @@ internal static class SupportModuleOverwriter
             stream.CopyTo(dllWriteStream);
         }
 
+        if (!Directory.Exists(jsmFolder))
+        {
+            Log("Creating new JevilSM folder in UserData");
+            Directory.CreateDirectory(jsmFolder);
+        }
+
         Log("Wrote new support module to disk in working directory at " + newSmPath);
         if (!Directory.Exists(backupsFolder))
         {
@@ -41,56 +56,29 @@ internal static class SupportModuleOverwriter
             Log("Created backup directory " + backupsFolder);
         }
         Log("Backing up current support module to " + backupFile);
-        File.Copy(newSmPath, backupFile, true);
+        File.Copy(currSmPath, backupFile, true);
         Log("Successfully wrote support module backup.");
 
         Log("Replacing enumerator wrapper...");
-        Stream newSupportModule = CecilNewEnumeratorIfNeeded(newSmPath);
+        MemoryStream newSupportModule = GetAssemblyStream(newSmPath);
         Log("New support module successfully replaced and written to in-memory stream.");
         
-        Log("Deleting old support module.");
-        File.Delete(currSmPath);
-        Log("Old support module deleted. Creating new file in its place and opening stream to write.");
-        using (FileStream currSmOverwritten = File.OpenWrite(currSmPath))
-        {
-            newSupportModule.CopyTo(currSmOverwritten);
-            currSmOverwritten.Flush();
-        }
+        Log("Overwriting the support module at " + currSmPath);
+        File.WriteAllBytes(currSmPath, newSupportModule.ToArray());
+        // VVV DOESNT WORK!!! currSmOverwritten DOESNT RECIEVE ANY DATA!!! WHY? I DONT KNOW!!!
+        //using (FileStream currSmOverwritten = File.OpenWrite(currSmPath))
+        //{
+        //    newSupportModule.CopyTo(currSmOverwritten);
+        //    currSmOverwritten.Flush();
+        //}
         Log("Wrote new IL2CPP support module.");
     }
 
-    private static Stream CecilNewEnumeratorIfNeeded(string newSmPath)
+    // this is only abstracted into a method so i can easily add some cecil if needed
+    private static MemoryStream GetAssemblyStream(string newSmPath)
     {
         MemoryStream memoryStream = new();
-        if (!isQuest)
-        {
-            Log("Executing platform is Windows - able to use precompiled support module without modifications");
-            File.OpenRead(newSmPath).CopyTo(memoryStream);
-            return memoryStream;
-        }
-
-        Log("Executing platform is Android - New support module must have one method removed.");
-        Log("Reading new support module...");
-        using AssemblyDefinition newSm = AssemblyDefinition.ReadAssembly(newSmPath);
-        Log("Success!");
-
-        // Manually ret MelonLoader.Support.Main.ClearConsole() - It gets returned from immediately in LL, see https://github.com/LemonLoader/MelonLoader/blob/lemon/Dependencies/SupportModules/Il2Cpp/Main.cs#L60
-        Log("Finding MelonLoader.Support.Main.ClearConsole()");
-        MethodDefinition smMain = newSm.MainModule.GetType("MelonLoader.Support.Main").Methods.First(m => m.Name == "ClearConsole");
-        Log("Success!");
-
-        Log("Stripping ClearConsole()'s method body...");
-        MethodBody smMainBody = smMain.Body;
-        smMainBody.ExceptionHandlers.Clear();
-        smMainBody.Variables.Clear();
-        ILProcessor ilProc = smMainBody.GetILProcessor();
-
-        ilProc.Emit(OpCodes.Ret);
-        Log("Success!");
-
-        Log("Writing new support module to RAM");
-        newSm.Write(memoryStream);
-        Log("Success! Returning back to main execution.");
+        File.OpenRead(newSmPath).CopyTo(memoryStream);
         return memoryStream;
     }
 }

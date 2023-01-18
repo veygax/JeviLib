@@ -108,7 +108,7 @@ public class JeviLib : MelonMod
     }
 
     /// <summary>
-    /// Initializes 
+    /// Initializes JeviLib
     /// </summary>
     public override void OnInitializeMelon()
     {
@@ -123,14 +123,20 @@ public class JeviLib : MelonMod
             {
                 Warn("Since you're on Quest, JeviLib will attempt a live-update of mod files");
 
+                // need to MANUALLY FUCKING LOAD cecil.rocks because MONO ANDROID DOESNT LOAD IT, THE DUMB CUNT
+                string _cecilLocation = typeof(Mono.Cecil.AssemblyDefinition).Assembly.Location;
+                string _cecilRocksLocation = Path.Combine(Path.GetDirectoryName(_cecilLocation), "Mono.Cecil.Rocks.dll");
+                Log("Loading Cecil.Rocks from " + _cecilRocksLocation);
+                byte[] _cecilRocksAsm = File.ReadAllBytes(_cecilRocksLocation);
+                Assembly.Load(_cecilRocksAsm);
+
                 string userDataFolder = MelonUtils.UserDataDirectory;
                 string jsmPath = Path.Combine(userDataFolder, "JevilSM");
                 string logPath = Path.Combine(jsmPath, "FixerLog.log");
                 string newSmPath = Path.Combine(jsmPath, "Il2Cpp.dll");
-                string il2SmPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Dependencies", "SupportModules", "Il2Cpp.dll");
-                string unitaskPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UniTask.dll");
-                string il2MscorlibPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "Il2Cppmscorlib.dll");
-                string unhollowerBasePath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UnhollowerBaseLib.dll");
+                string unitaskPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UniTask.dll");
+                string il2mscorlibPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "Il2Cppmscorlib.dll");
+                string unhollowerBasePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnhollowerBaseLib.dll");
                 if (!Directory.Exists(jsmPath)) Directory.CreateDirectory(jsmPath);
 
                 Log($"Current support module path: {il2SmPath}");
@@ -140,20 +146,20 @@ public class JeviLib : MelonMod
                 Log($"UnhollowerBaseLib assembly path: {unhollowerBasePath}");
 
                 Log("Support module updating can now begin.");
-                Jevil.Patching.SupportModuleOverwriter.isQuest = Utilities.IsPlatformQuest(); // This could just be hardcoded false
-                Jevil.Patching.SupportModuleOverwriter.Log = (str) => Log("SupportModuleOverwriter: " + str);
-                Jevil.Patching.SupportModuleOverwriter.Error = Error;
-                Jevil.Patching.SupportModuleOverwriter.Execute(newSmPath, il2SmPath);
-                Log("Support module updating completed successfully.");
+                Log("JeviLib custom support module does not work properly on Android. A harmony based solution has been implemented instead");
 
                 Log("UniTask modification can now begin.");
-                Jevil.Patching.UniTaskCeciler.Log = (str) => Log("UniTaskCeciler: " + str);
-                Jevil.Patching.UniTaskCeciler.Error = Error;
-                Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath);
+                UniTaskCeciler.Log = (str) => Log("UniTaskCeciler: " + str);
+                UniTaskCeciler.Error = Error;
+                UniTaskCeciler.Execute(unitaskPath, il2mscorlibPath, unhollowerBasePath, MelonUtils.UserDataDirectory);
 
                 Log("Critical mod files have been modified. It is recommended you restart your game.");
             }
         }
+
+        // for once, the quest users get a better user experience, although it allocates more memory and takes a bit longer to execute
+        if (Utilities.IsPlatformQuest()) QuestEnumeratorRewrapper.Init();
+        
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
         go.AddComponent<NeverCollect>();
@@ -164,16 +170,16 @@ public class JeviLib : MelonMod
 
     private static void StartForkIfNeeded()
     {
-        bool unitasksNeedFixing = Utilities.AreUniTasksUnpatched();
-        bool enumeratorsNeedFixing = Utilities.AreCoroutinesUnpatched();
+        bool unitasksNeedFixing = Utilities.UniTasksNeedPatch();
+        bool enumeratorsNeedFixing = Utilities.CoroutinesNeedPatch();
 
         if (unitasksNeedFixing) 
             Warn("UniTasks need fixing!");
         if (enumeratorsNeedFixing)
             Warn("MonoEnumeratorWrapper needs fixing!");
 
-        if (Utilities.IsPlatformQuest()) //todo: provide steps in error
-            throw new PlatformNotSupportedException("Android security does not allow forking processes. To restore UniTask/Coroutine functionality, you will need to connect your headset to a computer and run a program.");
+        if (Utilities.IsPlatformQuest())
+            throw new PlatformNotSupportedException("JevilFixer does not work on Quest. Its features have been recreated for Android.");
 
         if (unitasksNeedFixing || enumeratorsNeedFixing)
             Log("Starting fork process to watch for fixes!");

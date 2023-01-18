@@ -13,13 +13,18 @@ internal static class UniTaskCeciler
     public static Action<string> Log;
     public static Action<string> Error;
 
-    public static void Execute(string unitaskAsmPath, string il2cppMscorlibPath, string unhollowerBaselibPath)
+    public static void Execute(string unitaskAsmPath, string il2cppMscorlibPath, string unhollowerBaselibPath, string userData)
     {
 #if DEBUG
         if (Log == null || Error == null) 
             throw new NullReferenceException("Logging callbacks cannot be null.");
 #endif
-        string backupsFolder = Path.Combine(Path.GetDirectoryName(unitaskAsmPath), "..", "..", "UserData", "JevilSM", "Backups");
+
+        Log($"UniTask assembly path: {unitaskAsmPath}");
+        Log($"Unhollowed IL2CPP mscorlib assembly path: {il2cppMscorlibPath}");
+        Log($"UnhollowerBaseLib assembly path: {unhollowerBaselibPath}");
+
+        string backupsFolder = Path.Combine(userData, "JevilSM", "Backups");
         string backupFile = Path.Combine(backupsFolder, "UniTask.bak.dll");
 
         if (!Directory.Exists(backupsFolder))
@@ -32,10 +37,9 @@ internal static class UniTaskCeciler
         Log("Successfully wrote UniTask.dll backup.");
 
         // Added copious log statements
-        Log("Creating temporary file for modified UniTask.dll");
-        string tempPath = Path.GetTempFileName();
-        FileStream tempStream = new FileStream(tempPath, FileMode.Open);
-        Log("Success! Temporary file location: " + tempPath);
+        Log("Creating memory stream for modified UniTask.dll");
+        using MemoryStream tempStream = new MemoryStream();
+        Log("Success!");
 
         Log("Reading UnhollowerBaseLib for type reference...");
         TypeDefinition il2cppObjectRef = AssemblyDefinition.ReadAssembly(unhollowerBaselibPath).MainModule.GetType("UnhollowerBaseLib.Il2CppObjectBase");
@@ -80,8 +84,14 @@ internal static class UniTaskCeciler
         Log("Success!");
 
         Log("Looking for UniTask Awaiter OnCompleted method definitions...");
-        MethodDefinition uniTaskAwaiterOnCompletedGeneric = uniTaskAwaiterGeneric.Methods.First(m => m.Name == nameof(INotifyCompletion.OnCompleted));
-        MethodDefinition uniTaskAwaiterOnCompletedUntyped = uniTaskAwaiterUntyped.Methods.First(m => m.Name == nameof(INotifyCompletion.OnCompleted));
+        const string unhollowedMethodName =
+#if JEVIL_MELONMOD
+            nameof(ICriticalNotifyCompletion.UnsafeOnCompleted);
+#else
+            nameof(INotifyCompletion.OnCompleted);
+#endif
+        MethodDefinition uniTaskAwaiterOnCompletedGeneric = uniTaskAwaiterGeneric.Methods.First(m => m.Name == unhollowedMethodName);
+        MethodDefinition uniTaskAwaiterOnCompletedUntyped = uniTaskAwaiterUntyped.Methods.First(m => m.Name == unhollowedMethodName);
         Log("Success!");
 
         // Clear previous runs
@@ -169,12 +179,9 @@ internal static class UniTaskCeciler
         Log(" - Success!");
 
         Log(" - Copying temporary file to UniTask.dll path...");
-        File.Copy(tempPath, unitaskAsmPath, true);
+        File.WriteAllBytes(unitaskAsmPath, tempStream.ToArray());
         Log(" - Success!");
 
-        Log(" - Deleting temporary file...");
-        File.Delete(tempPath);
-        Log(" - Success!");
         Log("Success!");
     }
 }
