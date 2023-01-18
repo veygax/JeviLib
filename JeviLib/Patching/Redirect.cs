@@ -16,6 +16,7 @@ namespace Jevil.Patching;
 /// <summary>
 /// A class to make prefixes easier to create.
 /// <para>This is functionally different from <see cref="Hook"/> due to the use of Prefixes instead of Postfixes. If you want to modify some fields before a method runs or replace a method entirely, use this class.</para>
+/// <para>It is important to use the Debug build of JeviLib when testing anything using <see cref="Hook"/> or <see cref="Redirect"/> because debug builds have more specific errors.</para>
 /// </summary>
 public static class Redirect
 {
@@ -31,7 +32,7 @@ public static class Redirect
     public static int lockTimeout = 1000;
     static SpinLock spinLock = new();
 
-    // should be clear to use because internals SHOULD be visible to the dynamically created assembly called "JeviLib Dynamic Patch Assembly Host"
+    // fine to use because internals are be visible to the dynamically created assembly called "JeviLib Dynamic Patch Assembly Host" (see AssemblyInfo.cs, the InternalsVisibleTo attr)
     internal static List<Delegate> redirectionDelegates = new();
     internal static Delegate GetDelegate(int idx) => redirectionDelegates[idx]; // didnt feel like learning how to have an expression get 
     private static readonly MethodInfo GetDelegate_Info = typeof(Redirect).GetMethod(nameof(GetDelegate), BindingFlags.Static | BindingFlags.NonPublic);
@@ -50,11 +51,14 @@ public static class Redirect
     /// Redirection to <see cref="FromMethod{TDelegate}(MethodInfo, TDelegate, bool)"/>. See that method's summary and remarks unless you value 'trial and error' and 'fucking around and finding out' over your time.
     /// <para>This is one of the few JeviLib methods that will actually <see langword="throw"/> when something is amiss, so make sure you have your ducks in a row.</para>
     /// </summary>
-    /// <typeparam name="TDelegateSource"></typeparam>
-    /// <typeparam name="TDelegateDest"></typeparam>
-    /// <param name="toBeRedirected"></param>
-    /// <param name="toBeRan"></param>
-    /// <param name="skipOriginal"></param>
+    /// <typeparam name="TDelegateSource">Any method type</typeparam>
+    /// <typeparam name="TDelegateDest">Something invokable like <see cref="Action"/></typeparam>
+    /// <param name="toBeRedirected">
+    /// The method being replaced/prefixed. Can be static or instanced.
+    /// <para>This applies on a method-wide basis, not just to the single instance you have a reference to (assuming the method isn't static).</para>
+    /// </param>
+    /// <param name="toBeRan">The invokable to be executed before <paramref name="toBeRedirected"/></param>
+    /// <param name="skipOriginal">Whether to fully replace the method being redirected (<see langword="true"/>) or to just prefix it (<see langword="false"/>).</param>
     /// <example>
     /// Redirect.FromDelegate(Physics.ClosestPoint, ClosestPointButBetter, true);
     /// Redirect.FromDelegate(Physics.ClosestPoint, ClosestPointChangePreState, false);
