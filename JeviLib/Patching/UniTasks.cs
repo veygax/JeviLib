@@ -43,6 +43,16 @@ internal static class UniTasks
         }
     }
 
+    [HarmonyPatch(typeof(UniTask), nameof(UniTask.Delay), new Type[] { typeof(int), typeof(DelayType), typeof(PlayerLoopTiming), typeof(CancellationToken) })]
+    public static class Delay_4
+    {
+        // patch the main Delay to make sure the cancellationtoken is never null, as that will cause a trace to appear for one frame before hardcrashing
+        public static void Prefix(ref CancellationToken cancellationToken)
+        {
+            cancellationToken ??= new CancellationToken();
+        }
+    }
+
     // ONLY USE VVVVV
     // ONLY USE public unsafe static UniTask Delay(TimeSpan delayTimeSpan, DelayType delayType, PlayerLoopTiming delayTiming = PlayerLoopTiming.Update, [Optional] CancellationToken cancellationToken)
     // ONLY USE ^^^^^
