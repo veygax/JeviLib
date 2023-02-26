@@ -119,7 +119,7 @@ public static class AsyncExtensions
         }
 #else 
         await awaited;
-        runAfter();
+        runAfter(awaited.Result);
 #endif
     }
 }
