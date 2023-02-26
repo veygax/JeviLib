@@ -1,10 +1,12 @@
 ﻿using BoneLib;
 using BoneLib.RandomShit;
+using Cysharp.Threading.Tasks;
 using HarmonyLib;
 using MelonLoader;
 using PuppetMasta;
 using SLZ.Interaction;
 using SLZ.Marrow.Pool;
+using SLZ.VRMK;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -16,9 +18,11 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Runtime.Remoting;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UnhollowerBaseLib;
 using UnityEngine;
 
 namespace Jevil;
@@ -76,6 +80,7 @@ public static class Utilities
     /// <returns>The output of FindObjectsOfTypeAll, ran through Select. It is recommended you ToArray it to avoid running the selector every access.</returns>
     public static IEnumerable<T> FindAll<T>() where T : UnityEngine.Object
     {
+        // cannot use LINQ .Cast<T> as that does not use the IL2CPP Cast method
         return GameObject.FindObjectsOfTypeAll(UnhollowerRuntimeLib.Il2CppType.Of<T>()).Select(obj => obj.Cast<T>());
     }
 
@@ -88,7 +93,7 @@ public static class Utilities
     /// <param name="data"></param>
     /// <param name="split"></param>
     /// <returns>The first element alone, with the following elements joined in one string.</returns>
-    public static string[] Argsify(string data, char split)
+    public static string[] Argsify(string data, char split = ',')
     {
         string[] args = data.Split(split);
         string arg = args[0];
@@ -109,7 +114,7 @@ public static class Utilities
     {
 #if DEBUG
         if (startIdx == 0 && bytes.Length != Const.SizeV3) JeviLib.Warn($"Trying to debyte a Vector3 of length {bytes.Length}, this is not the expected {Const.SizeV3} bytes!");
-        if (startIdx + (sizeof(float) * 3) > bytes.Length) JeviLib.Warn($"{bytes.Length} is too short for the given index of {startIdx}");
+        if (startIdx + Const.SizeV3 > bytes.Length) JeviLib.Warn($"{bytes.Length} is too short for the given index of {startIdx}");
 #endif
         return new Vector3(
             BitConverter.ToSingle(bytes, startIdx),
@@ -292,6 +297,53 @@ public static class Utilities
     /// <param name="arrays">The arrays to be concatenated one after another.</param>
     /// <returns>An array of bytes whose length is equal to the sum of the lengths of the input arrays.</returns>
     public static byte[] Flatten(params byte[][] arrays) => Extensions.Flatten(arrays);
+
+    /// <summary>
+    /// Gets the byte representation of 
+    /// </summary>
+    /// <returns></returns>
+    public static byte[] SerializeInFrontFacingPlayer()
+    {
+        byte[] res = new byte[Const.SizeV3 * 2];
+
+        Vector3 inFrontOfPlayer = Player.playerHead.position + Player.playerHead.forward * 2;
+        inFrontOfPlayer.ToBytes().CopyTo(res, 0);
+        Quaternion.LookRotation(-Player.playerHead.forward).eulerAngles.ToBytes().CopyTo(res, Const.SizeV3);
+
+        return res;
+    }
+
+    /// <summary>
+    /// Reads an array of bytes as if contained a position and rotation, packed as follows: Position vector, followed immediately by an euler angles rotation.
+    /// </summary>
+    /// <param name="bytes">Source byte array. A warning will be logged if your array is too short for the data that is expected to be read off, likely followed by an error from the <see cref="BitConverter"/> class.</param>
+    /// <param name="startIdx">The index at which to start reading the array.</param>
+    /// <returns>A position and rotation, likely from <see cref="SerializeInFrontFacingPlayer"/></returns>
+    public static (Vector3, Quaternion) DebytePosRot(byte[] bytes, int startIdx = 0)
+    {
+#if DEBUG
+        if (startIdx == 0 && bytes.Length != Const.SizeV3 * 2) JeviLib.Warn($"Trying to debyte a posrot of length {bytes.Length}, this is not the expected {Const.SizeV3 * 2} bytes!");
+        if (startIdx + Const.SizeV3 * 2 > bytes.Length) JeviLib.Warn($"{bytes.Length} is too short for the given index of {startIdx}");
+#endif
+        return
+        (
+            new Vector3
+            (
+                BitConverter.ToSingle(bytes, startIdx),
+                BitConverter.ToSingle(bytes, startIdx + sizeof(float)),
+                BitConverter.ToSingle(bytes, startIdx + sizeof(float) * 2)
+            ),
+            Quaternion.Euler
+            (
+                new Vector3
+                (
+                    BitConverter.ToSingle(bytes, startIdx + Const.SizeV3),
+                    BitConverter.ToSingle(bytes, startIdx + Const.SizeV3 + sizeof(float)),
+                    BitConverter.ToSingle(bytes, startIdx + Const.SizeV3 + sizeof(float) * 2)
+                )
+            )
+        );
+    }
 
     /// <summary>
     /// Takes an embedded resource from "Resources/EntanglementSync.dll" out of the caller (that's you!) and loads it if Entanglement is installed.
@@ -530,7 +582,7 @@ public static class Utilities
         // public static void Inspect(object obj, CacheObjectBase sourceCache = null)
         MethodInfo minf = inspectorManager?.GetMethod("Inspect", new Type[] { typeof(Type) });
         minf?.Invoke(null, new object[] { t });
-        
+
 #endif
     }
 
@@ -679,5 +731,88 @@ public static class Utilities
             JeviLib.Log("This game needs patches applied - restarting!");
             RestartGame();
         }
+    }
+
+    /// <summary>
+    /// Returns whether the package with the given ID <paramref name="appId"/> is installed on the given system.
+    /// </summary>
+    /// <param name="appId">The package app ID. Usually looks something like "com.StressLevelZero.BONELAB"</param>
+    /// <returns><see langword="true"/> if the package's "launch intents" were found (IDK, ask that guy from the Unity forums), <see langword="false"/> if it wasn't or if the current platform is not android.</returns>
+    public static bool IsAndroidPackageInstalled(string appId)
+    {
+        if (!IsPlatformQuest()) return false;
+
+        AndroidJavaClass up = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+        AndroidJavaObject ca = up.GetStatic<AndroidJavaObject>("currentActivity");
+        AndroidJavaObject packageManager = ca.Call<AndroidJavaObject>("getPackageManager", new UnhollowerBaseLib.Il2CppReferenceArray<Il2CppSystem.Object>(0));
+        AndroidJavaObject launchIntent = null;
+        //if the app is installed, no errors. Else, doesn't get past next line
+        try
+        {
+            Il2CppReferenceArray<Il2CppSystem.Object> parameter = new(1);
+            parameter[0] = appId;
+            //object[] parameters = { appId };
+            launchIntent = packageManager.Call<AndroidJavaObject>("getLaunchIntentForPackage", parameter);
+            //        
+            //        ca.Call("startActivity",launchIntent);
+        }
+        catch (Exception ex)
+        {
+            JeviLib.Warn("Exception while checking package installation. Likely harmless: " + ex);
+        }
+
+        if (launchIntent == null)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Builds a loggable string that's similar to what's logged when calling NodeJS's (or whatever browser you have) <c>console.log</c> function.
+    /// </summary>
+    /// <param name="obj">The object to build a string from.</param>
+    /// <param name="maxRecurseDepth">Determines the depth of how far to JS-like string for every single member of <paramref name="obj"/> and every member of every member, etc.</param>
+    /// <returns>A <c>console.log</c>-like string. Does not include color codes.</returns>
+    public static string BuildJavaScriptLogStr(object obj, int maxRecurseDepth = 3)
+    {
+        if (obj is null) return "<null>";
+        if (obj is Il2CppSystem.Object il2obj && il2obj.WasCollected) return "<Collected in the IL2CPP domain>";
+
+        StringBuilder sb = new StringBuilder();
+
+        Internal.Utilities.InternalDump(0, "Logged object", obj, sb, new(), maxRecurseDepth > 0);
+        
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Changes the strength (forces, torques, etc) of a <see cref="PhysHand"/>
+    /// </summary>
+    /// <param name="hand">The hand whose values will be change</param>
+    /// <param name="mult">Strength multiplier</param>
+    /// <param name="torque">Torque multiplier</param>
+    public static void ChangeStrength(PhysHand hand, float mult = 200f, float torque = 10f)
+    {
+
+        /*
+         * THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE
+         * I GANKED THE FUCK OUT OF THIS CODE FROM LAKATRAZZ'S SPIDERMAN MOD
+         *      IT'S NOT OPEN SOURCE SO I HOPE I DON'T GET SUED, BUT IF HE WANTS THIS GONE, FINE BY ME, ILL REMOVE IT
+         *      I DNSPY'D THE SPIDERMAN MOD AND COPY PASTED THE SPIDERMAN.MODOPTIONS.MULTIPLYFORCES METHOD
+         *      I THINK ITS FINE THO CAUSE I ASKED HIM AND HE SAID "just take code from any of my mods tbh i dont care"
+         *      (https://discord.com/channels/563139253542846474/724595991675797554/913613134885974036)
+         * THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE - THIS CODE IS NOT MINE
+         */
+
+        hand.xPosForce = 90f * mult;
+        hand.yPosForce = 90f * mult;
+        hand.zPosForce = 340f * mult;
+        hand.xNegForce = 90f * mult;
+        hand.yNegForce = 200f * mult;
+        hand.zNegForce = 360f * mult;
+        hand.newtonDamp = 80f * mult;
+        hand.angDampening = torque;
+        hand.dampening = 0.2f * mult;
+        hand.maxTorque = 30f * torque;
     }
 }

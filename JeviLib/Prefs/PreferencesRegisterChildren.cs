@@ -16,7 +16,7 @@ public sealed class PreferencesRegisterChildren : Attribute
     /// <summary>
     /// Decorates a class with <see cref="PreferencesRegisterChildren"/>
     /// </summary>
-    /// <param name="hookCtor"></param>
+    /// <param name="hookCtor">this feature is not yet implemented</param>
     public PreferencesRegisterChildren(bool hookCtor) 
     {
         hookCtorForAutoRegister = hookCtor;

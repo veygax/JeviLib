@@ -62,26 +62,39 @@ internal static class UniTaskCeciler
         TypeDefinition voidDef = mscorlib.MainModule.GetType(typeof(void).FullName);
         TypeDefinition actionGenericDef = mscorlib.MainModule.GetType(typeof(Action).FullName + "`1");
         TypeDefinition actionUntypedDef = mscorlib.MainModule.GetType(typeof(Action).FullName);
+        TypeDefinition attributeDef = mscorlib.MainModule.GetType(typeof(System.Attribute).FullName);
+        TypeDefinition typeDef = mscorlib.MainModule.GetType(typeof(Type).FullName);
         Log("Success!");
 
         Log("Loading UniTask.dll to modify...");
         AssemblyDefinition asm = AssemblyDefinition.ReadAssembly(unitaskAsmPath);
+        ModuleDefinition utMod = asm.MainModule;
         Log("Success!");
 
         Log("Importing references for UniTask...");
-        MethodReference monoActionToIl2ActionGenericRef = asm.MainModule.ImportReference(monoActionToIl2ActionGenericDef);
-        MethodReference monoActionToIl2ActionUntypedRef = asm.MainModule.ImportReference(monoActionToIl2ActionUntypedDef);
-        TypeReference voidRef = asm.MainModule.ImportReference(voidDef);
-        TypeReference actionGenericRef = asm.MainModule.ImportReference(actionGenericDef);
-        TypeReference actionUntypedRef = asm.MainModule.ImportReference(actionUntypedDef);
-        TypeReference notifyCompletionRef = asm.MainModule.ImportReference(notifyCompletionDef);
+        MethodReference monoActionToIl2ActionGenericRef = utMod.ImportReference(monoActionToIl2ActionGenericDef);
+        MethodReference monoActionToIl2ActionUntypedRef = utMod.ImportReference(monoActionToIl2ActionUntypedDef);
+        TypeReference voidRef = utMod.ImportReference(voidDef);
+        TypeReference actionGenericRef = utMod.ImportReference(actionGenericDef);
+        TypeReference actionUntypedRef = utMod.ImportReference(actionUntypedDef);
+        TypeReference notifyCompletionRef = utMod.ImportReference(notifyCompletionDef);
+        TypeReference attributeRef = utMod.ImportReference(attributeDef);
+        TypeReference typeRef = utMod.ImportReference(typeDef);
         Log("Success!");
 
+
+        Log("Looking for UniTask type definition");
+        TypeDefinition uniTaskDef = utMod.GetType("Cysharp.Threading.Tasks.UniTask");
+        Log("Success!");
 
         Log("Looking for UniTask Awaiter type definitions...");
-        TypeDefinition uniTaskAwaiterGeneric = asm.MainModule.GetType("Cysharp.Threading.Tasks.UniTask`1/Awaiter");
-        TypeDefinition uniTaskAwaiterUntyped = asm.MainModule.GetType("Cysharp.Threading.Tasks.UniTask/Awaiter");
+        TypeDefinition uniTaskAwaiterGeneric = utMod.GetType("Cysharp.Threading.Tasks.UniTask`1/Awaiter");
+        TypeDefinition uniTaskAwaiterUntyped = utMod.GetType("Cysharp.Threading.Tasks.UniTask/Awaiter");
+        TypeDefinition yieldAwaiter = utMod.GetType("Cysharp.Threading.Tasks.YieldAwaitable/Awaiter");
+        TypeDefinition switchToMainThreadAwaiter = utMod.GetType("Cysharp.Threading.Tasks.SwitchToMainThreadAwaitable/Awaiter");
+        TypeDefinition switchToThreadPoolAwaiter = utMod.GetType("Cysharp.Threading.Tasks.SwitchToThreadPoolAwaitable/Awaiter");
         Log("Success!");
+
 
         Log("Looking for UniTask Awaiter OnCompleted method definitions...");
         const string unhollowedMethodName =
@@ -92,6 +105,9 @@ internal static class UniTaskCeciler
 #endif
         MethodDefinition uniTaskAwaiterOnCompletedGeneric = uniTaskAwaiterGeneric.Methods.First(m => m.Name == unhollowedMethodName);
         MethodDefinition uniTaskAwaiterOnCompletedUntyped = uniTaskAwaiterUntyped.Methods.First(m => m.Name == unhollowedMethodName);
+        MethodDefinition yieldAwaiterOnCompleted = yieldAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
+        MethodDefinition mainThreadOnCompleted = switchToMainThreadAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
+        MethodDefinition threadPoolOnCompleted = switchToThreadPoolAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
         Log("Success!");
 
         // Clear previous runs
@@ -100,10 +116,25 @@ internal static class UniTaskCeciler
             uniTaskAwaiterGeneric.Interfaces.Clear();
         if (uniTaskAwaiterUntyped.Interfaces.Any(i => i.InterfaceType == null) || uniTaskAwaiterUntyped.Interfaces.Count(i => i.InterfaceType.Name == nameof(INotifyCompletion)) >= 1)
             uniTaskAwaiterUntyped.Interfaces.Clear();
-        var md1 = uniTaskAwaiterGeneric.Methods.FirstOrDefault(m => m.Name == "OnCompleted" && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
-        var md2 = uniTaskAwaiterUntyped.Methods.FirstOrDefault(m => m.Name == "OnCompleted" && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        if (yieldAwaiter.Interfaces.Any(i => i.InterfaceType == null) || yieldAwaiter.Interfaces.Count(i => i.InterfaceType.Name == nameof(INotifyCompletion)) >= 1)
+            yieldAwaiter.Interfaces.Clear();
+        if (switchToMainThreadAwaiter.Interfaces.Any(i => i.InterfaceType == null) || switchToMainThreadAwaiter.Interfaces.Count(i => i.InterfaceType.Name == nameof(INotifyCompletion)) >= 1)
+            switchToMainThreadAwaiter.Interfaces.Clear();
+        if (switchToThreadPoolAwaiter.Interfaces.Any(i => i.InterfaceType == null) || switchToThreadPoolAwaiter.Interfaces.Count(i => i.InterfaceType.Name == nameof(INotifyCompletion)) >= 1)
+            switchToThreadPoolAwaiter.Interfaces.Clear();
+        var md1 = uniTaskAwaiterGeneric.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        var md2 = uniTaskAwaiterUntyped.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        var md3 = yieldAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        var md4 = switchToMainThreadAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        var md5 = switchToThreadPoolAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName && !m.Parameters.FirstOrDefault().ParameterType.FullName.ToLower().Contains("il2"));
+        var td1 = utMod.GetType("System.Runtime.CompilerServices.AsyncMethodBuilderAttribute");
         if (md1 != null) uniTaskAwaiterGeneric.Methods.Remove(md1);
         if (md2 != null) uniTaskAwaiterUntyped.Methods.Remove(md2);
+        if (md3 != null) yieldAwaiter.Methods.Remove(md3);
+        if (md4 != null) switchToMainThreadAwaiter.Methods.Remove(md4);
+        if (md5 != null) switchToThreadPoolAwaiter.Methods.Remove(md5);
+        if (td1 != null) utMod.Types.Remove(td1);
+
         Log("Success!");
 
         // Create new methods to host action conversion
@@ -113,9 +144,15 @@ internal static class UniTaskCeciler
         MethodAttributes onCompletedAttr = MethodAttributes.Public | MethodAttributes.Final | MethodAttributes.Virtual | MethodAttributes.HideBySig | MethodAttributes.NewSlot;
         MethodDefinition notifyCompletionGeneric = new(nameof(INotifyCompletion.OnCompleted), onCompletedAttr, voidRef);
         MethodDefinition notifyCompletionUntyped = new(nameof(INotifyCompletion.OnCompleted), onCompletedAttr, voidRef);
+        MethodDefinition yieldComplete = new(nameof(INotifyCompletion.OnCompleted), onCompletedAttr, voidRef) ;
+        MethodDefinition mainThreadComplete = new(nameof(INotifyCompletion.OnCompleted), onCompletedAttr, voidRef) ;
+        MethodDefinition threadPoolComplete = new(nameof(INotifyCompletion.OnCompleted), onCompletedAttr, voidRef) ;
         TypeReference genericActionRefMatchesTask = actionGenericRef.MakeGenericInstanceType(uniTaskAwaiterGeneric.GenericParameters[0]);
-        notifyCompletionGeneric.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, genericActionRefMatchesTask));
+        notifyCompletionGeneric.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, actionUntypedRef));
         notifyCompletionUntyped.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, actionUntypedRef));
+        yieldComplete.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, actionUntypedRef));
+        mainThreadComplete.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, actionUntypedRef));
+        threadPoolComplete.Parameters.Add(new ParameterDefinition("jevilSaysHi", ParameterAttributes.None, actionUntypedRef));
         Log("Success!");
 
         // Create method bodies
@@ -123,15 +160,21 @@ internal static class UniTaskCeciler
         Log(" - Creating bodies & getting IL Processors...");
         MethodBody genericBody = new(notifyCompletionGeneric);
         MethodBody untypedBody = new(notifyCompletionGeneric);
+        MethodBody yieldBody = new(yieldComplete);
+        MethodBody mainThreadBody = new(mainThreadComplete);
+        MethodBody threadPoolBody = new(threadPoolComplete);
         ILProcessor genericProc = genericBody.GetILProcessor();
         ILProcessor untypedProc = untypedBody.GetILProcessor();
+        ILProcessor yieldProc = yieldBody.GetILProcessor();
+        ILProcessor mainThreadProc = mainThreadBody.GetILProcessor();
+        ILProcessor threadPoolProc = threadPoolBody.GetILProcessor();
         Log(" - Success!");
 
-        // pasting the IL from some dummy methods real quick
+        // pasting the IL from some sample methods real quick
         Log(" - Filling in method body for the generic awaiter...");
         genericProc.Emit(OpCodes.Ldarg_0);
         genericProc.Emit(OpCodes.Ldarg_1); //ldarg1 because not static method
-        genericProc.Emit(OpCodes.Call, monoActionToIl2ActionGenericRef);
+        genericProc.Emit(OpCodes.Call, monoActionToIl2ActionUntypedRef);
         genericProc.Emit(OpCodes.Call, uniTaskAwaiterOnCompletedGeneric);
         genericProc.Emit(OpCodes.Ret);
         Log(" - Success!");
@@ -144,16 +187,49 @@ internal static class UniTaskCeciler
         untypedProc.Emit(OpCodes.Ret);
         Log(" - Success!");
 
+        Log(" - Filling in method body for yield awaiter");
+        yieldProc.Emit(OpCodes.Ldarg_0);
+        yieldProc.Emit(OpCodes.Ldarg_1);
+        yieldProc.Emit(OpCodes.Call, monoActionToIl2ActionUntypedRef);
+        yieldProc.Emit(OpCodes.Call, yieldAwaiterOnCompleted);
+        yieldProc.Emit(OpCodes.Ret);
+        Log(" - Success!");
+
+        Log(" - Filling in method body for main thread awaiter");
+        mainThreadProc.Emit(OpCodes.Ldarg_0);
+        mainThreadProc.Emit(OpCodes.Ldarg_1);
+        mainThreadProc.Emit(OpCodes.Call, monoActionToIl2ActionUntypedRef);
+        mainThreadProc.Emit(OpCodes.Call, yieldAwaiterOnCompleted);
+        mainThreadProc.Emit(OpCodes.Ret);
+        Log(" - Success!");
+
+        Log(" - Filling in method body for thread pool awaiter");
+        threadPoolProc.Emit(OpCodes.Ldarg_0);
+        threadPoolProc.Emit(OpCodes.Ldarg_1);
+        threadPoolProc.Emit(OpCodes.Call, monoActionToIl2ActionUntypedRef);
+        threadPoolProc.Emit(OpCodes.Call, yieldAwaiterOnCompleted);
+        threadPoolProc.Emit(OpCodes.Ret);
+        Log(" - Success!");
+
         Log(" - Assigning and optimizing method bodies");
         notifyCompletionGeneric.Body = genericBody;
         notifyCompletionUntyped.Body = untypedBody;
+        yieldComplete.Body = yieldBody;
+        mainThreadComplete.Body = mainThreadBody;
+        threadPoolComplete.Body = threadPoolBody;
         notifyCompletionGeneric.Body.Optimize();
         notifyCompletionUntyped.Body.Optimize();
+        yieldComplete.Body.Optimize();
+        mainThreadComplete.Body.Optimize();
+        threadPoolComplete.Body.Optimize();
         Log(" - Success!");
 
         Log(" - Adding new methods to UniTask Awaiters...");
         uniTaskAwaiterGeneric.Methods.Add(notifyCompletionGeneric);
         uniTaskAwaiterUntyped.Methods.Add(notifyCompletionUntyped);
+        yieldAwaiter.Methods.Add(yieldComplete);
+        yieldAwaiter.Methods.Add(mainThreadComplete);
+        yieldAwaiter.Methods.Add(threadPoolComplete);
         Log(" - Success!");
 
         Log("Success!");
@@ -161,7 +237,35 @@ internal static class UniTaskCeciler
         Log("Making UniTask Awaiters implement interface...");
         uniTaskAwaiterGeneric.Interfaces.Add(new InterfaceImplementation(notifyCompletionRef));
         uniTaskAwaiterUntyped.Interfaces.Add(new InterfaceImplementation(notifyCompletionRef));
+        yieldAwaiter.Interfaces.Add(new InterfaceImplementation(notifyCompletionRef));
+        switchToMainThreadAwaiter.Interfaces.Add(new InterfaceImplementation(notifyCompletionRef));
+        switchToThreadPoolAwaiter.Interfaces.Add(new InterfaceImplementation(notifyCompletionRef));
         Log("Success!");
+
+
+        // This aint happening cuz IAsyncStateMachine shit. If someone wants to work through this by themself, go ahead and do it, 'cause I'm not.
+        //Log("Working on the UniTask builder...");
+        //Log("Creating AsyncMethodBuilderAttribute...");
+        //TypeDefinition asyncBuilderAttr = new("System.Runtime.CompilerServices", "AsyncMethodBuilderAttribute", TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit | TypeAttributes.NotPublic, attributeRef);
+
+        //Log(" - Creating BuilderType property...");
+        //PropertyDefinition builderTypeProp = new("BuilderType", PropertyAttributes.None, typeRef);
+        //FieldDefinition builderTypeBacking = new($"<{builderTypeProp.Name}>k__BackingField", FieldAttributes.Private, typeRef);
+
+        //MethodDefinition builderTypePropGet = new("get_" + builderTypeProp.Name, MethodAttributes.RTSpecialName | MethodAttributes.Public, typeRef);
+
+        //Log(" - Filling in BuilderType getter...");
+        //ILProcessor builderTypeProc = builderTypePropGet.Body.GetILProcessor();
+        //builderTypeProc.Emit(OpCodes.Ldarg_0);
+        //builderTypeProc.Emit(OpCodes.Ldfld, builderTypeBacking);
+        //builderTypeProc.Emit(OpCodes.Ret);
+
+        //Log(" - Filled in BuilderType getter. Binding backing field and property to AsyncMethodBuilderAttribute.");
+        //asyncBuilderAttr.Fields.Add(builderTypeBacking);
+        //asyncBuilderAttr.Properties.Add(builderTypeProp);
+
+
+
 
         Log("The moment of truth: Writing new UniTask assembly...");
         asm.Write(tempStream);

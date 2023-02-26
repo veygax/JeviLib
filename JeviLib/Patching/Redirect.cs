@@ -88,7 +88,7 @@ public static class Redirect
     {
         bool lockTaken = false;
 #if DEBUG
-        if (spinLock.IsHeld) JeviLib.QueueLog("Redirect will have to wait, the spin lock is presently held by another thread. Timing out in " + lockTimeout + ".");
+        if (spinLock.IsHeld) JeviLib.Log("Redirect will have to wait, the spin lock is presently held by another thread. Timing out in " + lockTimeout + ".");
 #endif
         try
         {
@@ -162,7 +162,7 @@ public static class Redirect
             if (lockTaken) spinLock.Exit();
             else
             {
-                JeviLib.QueueLog("FAILURE!!! Redirect failed to acquire the lock after " + lockTimeout + "ms! Queueing call after 500ms!");
+                JeviLib.Log("FAILURE!!! Redirect failed to acquire the lock after " + lockTimeout + "ms! Queueing call after 500ms!");
                 Waiting.CallDelayed.CallAction(() => FromMethod(toBeRedirected, toBeRan, skipOriginal), 0.5f, true);
             } 
         }

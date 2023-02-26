@@ -14,7 +14,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using UnhollowerRuntimeLib;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace Jevil;
 
@@ -223,15 +225,18 @@ public static class Extensions
     /// </summary>
     /// <param name="vec">The Vector3 to be serialized. Can be a Quaternion's Euler angles</param>
     /// <returns>A byte representation of the Vector <paramref name="vec"/></returns>
-    public static byte[] ToBytes(this Vector3 vec)
+    public static unsafe byte[] ToBytes(this Vector3 vec)
     {
-        byte[][] bytess = new byte[][]
+        byte[] ret = new byte[Const.SizeV3];
+
+        fixed(byte* arrayPtr = ret)
         {
-            BitConverter.GetBytes(vec.x),
-            BitConverter.GetBytes(vec.y),
-            BitConverter.GetBytes(vec.z)
-        };
-        return bytess.Flatten();
+            *(float*)arrayPtr = vec.x;
+            *(float*)(arrayPtr + sizeof(float)) = vec.y;
+            *(float*)(arrayPtr + sizeof(float) * 2) = vec.z;
+        }
+        
+        return ret;
     }
 
     /// <summary>
@@ -419,7 +424,7 @@ public static class Extensions
     /// <typeparam name="T">Any.</typeparam>
     /// <param name="sequence">The sequence to be split.</param>
     /// <param name="onePerCore">Divides processorCount by 2 so there's one per core instead of one per thread.</param>
-    /// <returns></returns>
+    /// <returns>An <see cref="IEnumerable{T}"/> with as many elements as there are in <see cref="SystemInfo.processorCount"/></returns>
     public static IEnumerable<IEnumerable<T>> SplitByProcessors<T>(this IEnumerable<T> sequence, bool onePerCore = false)
     {
         int splitCount = SystemInfo.processorCount;
@@ -571,6 +576,45 @@ public static class Extensions
     }
 
     /// <summary>
+    /// Spawns whatever a crate represents.
+    /// </summary>
+    /// <param name="crate">oo ee oo aa aa ting tang walla walla bing bang</param>
+    /// <param name="pos">Worldspace position to spawn the object</param>
+    /// <param name="rot">Worldspace rotation to give the object</param>
+    public static UniTask<AssetPoolee> SpawnAsync(this SpawnableCrate crate, Vector3 pos, Quaternion rot)
+    {
+        Spawnable spawn = Barcodes.ToSpawnable(crate.Barcode.ID);
+        return AssetSpawner.SpawnAsync(spawn, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+    }
+
+    /// <summary>
+    /// Spawns whatever a crate represents.
+    /// </summary>
+    /// <param name="spawnable">oo ee oo aa aa ting tang walla walla bing bang</param>
+    /// <param name="pos">Worldspace position to spawn the object</param>
+    /// <param name="rot">Worldspace rotation to give the object</param>
+    /// <param name="enableOnSpawn"></param>
+    public static void Spawn(this Spawnable spawnable, Vector3 pos, Quaternion rot, bool? enableOnSpawn = null)
+    {
+        Action<GameObject> callback = null;
+        if (enableOnSpawn.HasValue) 
+            callback = new Action<GameObject>(go => go.SetActive(enableOnSpawn.Value));
+        
+        AssetSpawner.Spawn(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), callback, null);
+    }
+
+    /// <summary>
+    /// Spawns whatever a crate represents.
+    /// </summary>
+    /// <param name="spawnable">oo ee oo aa aa ting tang walla walla bing bang</param>
+    /// <param name="pos">Worldspace position to spawn the object</param>
+    /// <param name="rot">Worldspace rotation to give the object</param>
+    public static UniTask<AssetPoolee> SpawnAsync(this Spawnable spawnable, Vector3 pos, Quaternion rot)
+    {
+        return AssetSpawner.SpawnAsync(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+    }
+
+    /// <summary>
     /// Spawns another <see cref="AssetPoolee"/> from the given <see cref="AssetPoolee"/>'s <see cref="AssetPool"/>.
     /// </summary>
     /// <param name="asspoole">https://media.tenor.com/images/1af43e40653cb90765d776fedf0186cf/tenor.gif</param>
@@ -579,5 +623,128 @@ public static class Extensions
     public static void Dupe(this AssetPoolee asspoole, Vector3 pos, Quaternion rot)
     {
         asspoole.spawnableCrate.Spawn(pos, rot);
+    }
+
+    /// <summary>
+    /// Allows you to use LINQ with IL2CPP dictionaries.
+    /// </summary>
+    /// <typeparam name="T1">Type 1</typeparam>
+    /// <typeparam name="T2">Type 2</typeparam>
+    /// <param name="enumerable">Any IL2CPP dictionary</param>
+    /// <returns>An IEnumerable that can be used with normal <see cref="System.Linq"/></returns>
+    public static IEnumerable<KeyValuePair<T1, T2>> MonoEnumerable<T1, T2>(this Il2CppSystem.Collections.Generic.Dictionary<T1, T2> enumerable)
+    {
+        foreach (var item in enumerable)
+        {
+            yield return new KeyValuePair<T1, T2>(item.Key, item.Value);
+        }
+    }
+
+    /// <summary>
+    /// Allows you to use LINQ with IL2CPP lists.
+    /// </summary>
+    /// <typeparam name="T">Type 2</typeparam>
+    /// <param name="enumerable">Any IL2CPP dictionary</param>
+    /// <returns>An IEnumerable that can be used with normal <see cref="System.Linq"/></returns>
+    public static IEnumerable<T> MonoEnumerable<T>(this Il2CppSystem.Collections.Generic.List<T> enumerable)
+    {
+        foreach (var item in enumerable)
+        {
+            yield return item;
+        }
+    }
+
+    /// <summary>
+    /// A manual unstripping of <c><see cref="AndroidJavaObject"/>.GetStatic{<typeparamref name="FieldType"/>}(<see langword="string"/> <paramref name="fieldName"/>)</c>
+    /// <para>Retrieves the value of a static field on an <see cref="AndroidJavaObject"/> (typically an <see cref="AndroidJavaClass"/>).</para>
+    /// <para><i>ARRAYS ARE NOT SUPPORTED! If you wish to implement array support, you can do so by going to the JeviLib GitHub repository.</i></para>
+    /// </summary>
+    /// <typeparam name="FieldType">A blittable type (AKA: A primitive, like <see cref="int"/> or <see cref="long"/>), <see cref="AndroidJavaObject"/>, or <see cref="string"/>.</typeparam>
+    /// <param name="ajo">The android java object to access the static field of.</param>
+    /// <param name="fieldName"></param>
+    /// <returns></returns>
+    /// <exception cref="Il2CppConversionException">Attempted to fetch an array. This is not currently supported.</exception>
+    /// <exception cref="Exception">Unknown field type. </exception>
+    public static FieldType GetStatic<FieldType>(this AndroidJavaObject ajo, string fieldName)
+    {
+        IntPtr fieldID = AndroidJNIHelper.GetFieldID<FieldType>(ajo.m_jclass, fieldName, true);
+        //if (Il2CppClassPointerStore<FieldType>.NativeClassPtr == IntPtr.Zero)
+        //    throw new NotSupportedException($"The ");
+
+        if (typeof(FieldType).IsPrimitive)
+        {
+            if (typeof(FieldType) == typeof(int))
+                return (FieldType)(object)AndroidJNISafe.GetStaticIntField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(bool))
+                return (FieldType)(object)AndroidJNISafe.GetStaticBooleanField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(byte))
+            {
+                JeviLib.Warn("Field type <Byte> for Java get field call is obsolete, use field type <SByte> instead");
+                return (FieldType)(object)AndroidJNISafe.GetStaticSByteField(ajo.m_jclass, fieldID);
+            }
+
+            if (typeof(FieldType) == typeof(sbyte))
+                return (FieldType)(object)AndroidJNISafe.GetStaticSByteField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(short))
+                return (FieldType)(object)AndroidJNISafe.GetStaticShortField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(long))
+                return (FieldType)(object)AndroidJNISafe.GetStaticLongField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(float))
+                return (FieldType)(object)AndroidJNISafe.GetStaticFloatField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(double))
+                return (FieldType)(object)AndroidJNISafe.GetStaticDoubleField(ajo.m_jclass, fieldID);
+
+            if (typeof(FieldType) == typeof(char))
+                return (FieldType)(object)AndroidJNISafe.GetStaticCharField(ajo.m_jclass, fieldID);
+
+            return default;
+        }
+
+        if (typeof(FieldType) == typeof(string))
+        {
+            return (FieldType)(object)AndroidJNISafe.GetStaticStringField(ajo.m_jclass, fieldID);
+        }
+
+        if (typeof(FieldType) == typeof(AndroidJavaClass))
+        {
+            IntPtr staticObjectField = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
+            
+            return (staticObjectField == IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField));
+        }
+
+        if (typeof(FieldType) == typeof(AndroidJavaObject))
+        {
+            IntPtr staticObjectField2 = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
+            return (staticObjectField2 == IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField2));
+        }
+
+        if (typeof(FieldType).IsAssignableFrom(typeof(Array)))
+            throw new Il2CppConversionException("Arrays must be retrieved as their IL2CPP types, not their Mono domain types.");
+
+        if (AndroidReflection.IsAssignableFrom(Il2CppType.Of<Il2CppSystem.Array>(), Il2CppType.Of<FieldType>()))
+        {
+            throw new Il2CppConversionException("Arrays cannot be retrieved. Too much wonk. If you wish to get arrays, implement it and test it.");
+            //IntPtr staticObjectField3 = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
+            //return AndroidJavaObject.FromJavaArrayDeleteLocalRef<FieldType>(staticObjectField3);
+        }
+
+        throw new Exception("JNI: Unknown field type '" + typeof(FieldType).ToString() + "'");
+    }
+
+    /// <summary>
+    /// Prevents an object from getting garbage collected using <see cref="HideFlags"/> and <see cref="UnityEngine.Object.DontDestroyOnLoad(UnityEngine.Object)"/>,
+    /// </summary>
+    /// <param name="unityObj">Any Unity object. Can be anything from a <see cref="Material"/> to a <see cref="AssetBundle"/>.</param>
+    /// <param name="hide">Applies the <see cref="HideFlags.HideAndDontSave"/> flag. This is recommended for prefabs you wish to use later, but not have appear at (0, 0, 0).</param>
+    public static void Persist(this UnityEngine.Object unityObj, bool hide = true)
+    {
+        unityObj.hideFlags = hide ? HideFlags.DontUnloadUnusedAsset | HideFlags.HideAndDontSave : HideFlags.DontUnloadUnusedAsset;
+        GameObject.DontDestroyOnLoad(unityObj);
     }
 }

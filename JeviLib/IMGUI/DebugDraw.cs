@@ -13,14 +13,14 @@ namespace Jevil.IMGUI;
 public static class DebugDraw
 {
 #if DEBUG
-    private static bool isActive = false;
+    internal static bool IsActive { get; private set; }
     private static readonly List<GUIToken> tokens = new();
     private static readonly List<GUIToken> tokensInactive = new(1) 
     { DebugDraw.Button("Toggle JGUI", GUIPosition.TOP_RIGHT, () => Toggle()) };
 
     internal static List<GUIToken> GetTokens()
     {
-        if (isActive) return tokens;
+        if (IsActive) return tokens;
         else return tokensInactive;
     }
 #endif
@@ -48,6 +48,10 @@ public static class DebugDraw
     /// <param name="position">The element's position on the screen</param>
     /// <param name="getter">The variable getter. Will be called in Update.</param>
     /// <returns>A <see cref="GUIToken"/> that can be sent to <see cref="Dont(GUIToken)"/> if you no longer wish for it to be drawn.</returns>
+    /// <example>
+    /// <c>TrackVariable(nameof(spawnedPoolees), GUIPosiiton.TOP_LEFT, () => spawnedPoolees);</c>
+    /// <br>Will appear as "spawnedPoolees: 4" (assuming spawnedPoolees == 4)</br>
+    /// </example>
     public static GUIToken TrackVariable<T>(string varName, GUIPosition position, Func<T> getter)
     {
         Func<object> boxedGetter = () => { return getter(); };
@@ -126,8 +130,8 @@ public static class DebugDraw
     public static bool Toggle()
     {
 #if DEBUG
-        isActive = !isActive;
-        return isActive;
+        IsActive = !IsActive;
+        return IsActive;
 #else
         return default;
 #endif

@@ -32,7 +32,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;JEVIL_MELONMOD</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -128,18 +128,22 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine.UnityWebRequestAssetBundleModule">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\UnityEngine.UnityWebRequestAssetBundleModule.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestWWWModule">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\UnityEngine.UnityWebRequestWWWModule.dll</HintPath>
+    <Reference Include="UnityEngine.UnityWebRequestModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActionExtensions.cs" />
+    <Compile Include="AsyncExtensions.cs" />
+    <Compile Include="AsyncUtilities.cs" />
+    <Compile Include="BundledAsset.cs" />
+    <Compile Include="Exceptions.cs" />
     <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Internal\Utilities\ObjectDumper.cs" />
     <Compile Include="JevilBuildInfo.cs" />
     <Compile Include="JeviLib.cs" />
+    <Compile Include="OneOf.cs" />
     <Compile Include="Patching\FixSocketAsyncEventArgs.cs" />
     <Compile Include="Patching\QuestEnumeratorRewrapper.cs" />
     <Compile Include="Patching\UniTasks.cs" />
@@ -153,7 +157,7 @@
     <Compile Include="IMGUI\GUIType.cs" />
     <Compile Include="IMGUI\GUIToken.cs" />
     <Compile Include="InstancesGeneric.cs" />
-    <Compile Include="Compiler_IsExternalInit.cs" />
+    <Compile Include="CompilerServices.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="NeverCollect.cs" />
     <Compile Include="Patching\CMaps.cs" />
@@ -162,6 +166,7 @@
     <Compile Include="Patching\Hook.cs" />
     <Compile Include="Patching\Redirect.cs" />
     <Compile Include="..\JevilForkedProcess\UniTaskCeciler.cs" Link="Patching\UniTaskCeciler.cs" />
+    <Compile Include="..\JevilForkedProcess\UnityCoreModuleCeciler.cs" Link="Patching\UnityCoreModuleCeciler.cs" />
     <Compile Include="Prefs\UnityDefaultColor.cs" />
     <Compile Include="Prefs\Pref.cs" />
     <Compile Include="Prefs\PrefEntries.cs" />
@@ -206,6 +211,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\ForkProcess.exe" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files (x86)\Steam\steamapps\common\BONELAB\Mods"

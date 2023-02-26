@@ -5,6 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using UnityEngine;
+using System.Reflection;
+using MelonLoader.Preferences;
+using MelonLoader;
+using BoneLib.BoneMenu.Elements;
 
 namespace Jevil.Prefs;
 
@@ -77,12 +81,29 @@ public sealed class Preferences : Attribute
 
         PrefEntries pentries = Register(type, attrib, pCol?.color ?? Color.white, qualifiedPath, overrideName ?? attrib.categoryName);
 
+        // dont register child types if the type doesnt want it
+        if (type.GetCustomAttribute<PreferencesRegisterChildren>() == null) 
+            return pentries;
+
         foreach (Type inheritingType in type.Assembly.GetTypes().Where(t => t.IsSubclassOf(type)))
         {
             Register(inheritingType, attrib, pCol?.color ?? Color.white, qualifiedPath, overrideName ?? attrib.categoryName);
         }
 
         return pentries;
+    }
+
+    /// <summary>
+    /// Registers a type's preferences under a manually defined <see cref="MelonPreferences_Category"/> and <see cref="MenuCategory"/>.
+    /// <para>Given type does not need the <see cref="Preferences"/> attribute.</para>
+    /// </summary>
+    /// <param name="t"></param>
+    /// <param name="mpCat">The <see cref="MelonPreferences_Category"/> to register preferences under.</param>
+    /// <param name="bmCat">The <see cref="MenuCategory"/> to register <see cref="MenuElement"/>s under.</param>
+    /// <remarks><i>This was done for Chaos. If you need a similar functionality to Chaos's preferences system, this is the one.</i></remarks>
+    public static void RegisterUnder(Type t, MelonPreferences_Category mpCat, MenuCategory bmCat)
+    {
+        PrefsInternal.RegisterPreferences(t, mpCat, bmCat);
     }
 
     private static PrefEntries Register(Type type, Preferences attribute, Color color, string filePath, string name)

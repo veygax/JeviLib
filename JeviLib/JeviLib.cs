@@ -40,12 +40,19 @@ public class JeviLib : MelonMod
     internal static Action onNamespaceAssembliesCompleted;
 
     static readonly ConcurrentQueue<string> toLog = new();
-    static volatile bool somethingIsLogging;
-
+    static Stopwatch mainThreadInvokeTimer = new();
 
 #if DEBUG
     private readonly int GuiGap = Utilities.IsPlatformQuest() ? 15 : 5;
     private readonly int GuiCornerDist = Utilities.IsPlatformQuest() ? 350 : 20;
+
+
+    // 0     1
+    // 2     3
+    private int[] pagination = new int[4]; // TL, TR, BL, BR
+    private GUIToken[] paginateTokens = new GUIToken[12];
+    private bool[] paginates = new bool[] { true, true, true, true };
+    private int[] pageIdx = new int[4];
 
     private GameObject tweenTarget;
     private List<GUIToken> standardJevilTokens = new();
@@ -75,8 +82,16 @@ public class JeviLib : MelonMod
         this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
         this.standardJevilTokens.Add(DebugDraw.Button("Test spawning", GUIPosition.TOP_LEFT, TestSpawning));
         this.standardJevilTokens.Add(DebugDraw.Button("Test UniTask async", GUIPosition.TOP_LEFT, TestUniTaskAsync));
-
+        
         this.standardJevilTokens.Add(DebugDraw.Button("PBM.CNSPU", GUIPosition.TOP_RIGHT, () => { PopupBoxManager.CreateNewShibePopup(); }));
+
+        for (int i = 0; i < paginateTokens.Length / 3; i++)
+        {
+            int _i = i;
+            paginateTokens[i * 3] = new GUIToken("Paginate", void () => paginates[_i] = !paginates[_i]);
+            paginateTokens[i * 3 + 1] = new GUIToken("Pg++", void () => pagination[_i]++);
+            paginateTokens[i * 3 + 2] = new GUIToken("Pg--", void () => pagination[_i]--);
+        }
 
         Stopwatch submoduleInitSW = Stopwatch.StartNew();
 #endif
@@ -88,8 +103,6 @@ public class JeviLib : MelonMod
 #if DEBUG
         submoduleInitSW.Stop();
 #endif
-
-        Task.Run(LogFromQueue);
 
         Task.Run(this.GetNamespaces);
 
@@ -137,6 +150,7 @@ public class JeviLib : MelonMod
                 string unitaskPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UniTask.dll");
                 string il2mscorlibPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "Il2Cppmscorlib.dll");
                 string unhollowerBasePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnhollowerBaseLib.dll");
+                string unityCoreModulePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnityEngine.CoreModule.dll");
                 if (!Directory.Exists(jsmPath))
                 {
                     Log("Created JevilSM directory: " + jsmPath);
@@ -146,10 +160,18 @@ public class JeviLib : MelonMod
                 Log("Support module updating can now begin.");
                 Log("JeviLib custom support module does not work properly on Android. A harmony based solution has been implemented instead");
 
+                Log("UnityEngine CoreModule modification can now begin");
+                UnityCoreModuleCeciler.Log = (str) => Log("UnityCoreModuleCeciler: " + str);
+                UnityCoreModuleCeciler.Error = (str) => Error("UnityCoreModuleCeciler: " + str);
+                UnityCoreModuleCeciler.Execute(unityCoreModulePath, il2mscorlibPath, userDataFolder);
+                Log("UnityEngine CoreModule modification finished successfully");
+
                 Log("UniTask modification can now begin.");
                 UniTaskCeciler.Log = (str) => Log("UniTaskCeciler: " + str);
-                UniTaskCeciler.Error = Error;
+                UniTaskCeciler.Error = (str) => Error("UniTaskCeciler: " + str);
                 UniTaskCeciler.Execute(unitaskPath, il2mscorlibPath, unhollowerBasePath, MelonUtils.UserDataDirectory);
+                Log("UniTask modification has finished.");
+
 
                 Log("Critical mod files have been modified. It is recommended you restart your game.");
             }
@@ -215,6 +237,8 @@ public class JeviLib : MelonMod
     public override void OnUpdate()
     {
         Tweener.UpdateAll();
+
+        mainThreadInvokeTimer.Restart();
     }
 
     ///// <summary>
@@ -330,16 +354,32 @@ public class JeviLib : MelonMod
                 JeviLib.Error($"Exception information: Source = '{ex.Source}'; Exception = {ex}");
             }
 
+            // assumed 12px for a button. default is 10 but im tryna make it a bit roomy
+            int pxForOneButton = (GuiGap * 2) + 15;
+            int drawnPerColumn = ((Screen.height - GuiCornerDist) / 2 / pxForOneButton) - 4;
+
             // these are only being enumerated once, so keeping them in an IEnumerable instead of ToArraying isn't a concern
             IEnumerable<GUIToken> topLeft = tokens.Where(t => t.position == GUIPosition.TOP_LEFT);
             IEnumerable<GUIToken> topRight = tokens.Where(t => t.position == GUIPosition.TOP_RIGHT);
             IEnumerable<GUIToken> bottomLeft = tokens.Where(t => t.position == GUIPosition.BOTTOM_LEFT);
             IEnumerable<GUIToken> bottomRight = tokens.Where(t => t.position == GUIPosition.BOTTOM_RIGHT);
 
+            //if (paginate)
+            //{
+            //    topLeft = topLeft.Skip(pageIdx * drawnPerColumn).Take(drawnPerColumn);
+            //    topRight = topRight.Skip(pageIdx * drawnPerColumn).Take(drawnPerColumn);
+            //    bottomLeft = bottomLeft.Skip(pageIdx * drawnPerColumn).Take(drawnPerColumn);
+            //    bottomRight = bottomRight.Skip(pageIdx * drawnPerColumn).Take(drawnPerColumn - paginateTokens.Length).Prepend(paginateTokens);
+            //}
+            
             // Draw top left
+            int screenCorner = 0;
             int maxWidth = 0;
             int xStart = GuiCornerDist;
             int yStart = GuiCornerDist;
+            if (paginates[screenCorner])
+                topLeft = topLeft.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
+            if (DebugDraw.IsActive) topLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topLeft);
             foreach (GUIToken token in topLeft)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -356,9 +396,13 @@ public class JeviLib : MelonMod
             }
 
             // Draw top right
+            screenCorner++;
             maxWidth = 0;
             xStart = Screen.width - GuiCornerDist;
             yStart = GuiCornerDist;
+            if (paginates[screenCorner])
+                topRight = topRight.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
+            if (DebugDraw.IsActive) topRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topRight);
             foreach (GUIToken token in topRight)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -375,9 +419,13 @@ public class JeviLib : MelonMod
             }
 
             // Draw bottom left
+            screenCorner++;
             maxWidth = 0;
             xStart = GuiCornerDist;
             yStart = Screen.height - GuiCornerDist;
+            if (paginates[screenCorner])
+                bottomLeft = bottomLeft.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
+            if (DebugDraw.IsActive) bottomLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomLeft);
             foreach (GUIToken token in bottomLeft)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -394,9 +442,13 @@ public class JeviLib : MelonMod
             }
 
             // Draw bottom right
+            screenCorner++;
             maxWidth = 0;
             xStart = Screen.width - GuiCornerDist;
             yStart = Screen.height - GuiCornerDist;
+            if (paginates[screenCorner])
+                bottomRight = bottomRight.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
+            if (DebugDraw.IsActive) bottomRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomRight);
             foreach (GUIToken token in bottomRight)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -448,13 +500,13 @@ public class JeviLib : MelonMod
 
     private async void GetNamespaces()
     {
-        QueueLog("Getting namespaces from assemblies now");
+        Log("Getting namespaces from assemblies now");
         Stopwatch sw = Stopwatch.StartNew();
 
         Assembly[] asms = AppDomain.CurrentDomain.GetAssemblies();
         Assembly[][] assemblies = asms.SplitByProcessors().Select(e => e.ToArray()).ToArray();
 #if DEBUG
-        QueueLog($"Getting namespaces from " + assemblies.Sum(a => a.Length) + " assemblies, split across " + assemblies.Length + " threads");
+        Log($"Getting namespaces from " + assemblies.Sum(a => a.Length) + " assemblies, split across " + assemblies.Length + " threads");
 #endif
 
         Thread[] threads = new Thread[assemblies.Length];
@@ -469,12 +521,12 @@ public class JeviLib : MelonMod
             threads[i] = dictThread;
         }
 #if DEBUG
-        QueueLog($"Split list & started threads in {sw.ElapsedMilliseconds} ms.");
+        Log($"Split list & started threads in {sw.ElapsedMilliseconds} ms.");
 #endif
         while (threads.Any(t => t.ThreadState != System.Threading.ThreadState.Stopped)) await Task.Yield();
 
         sw.Stop();
-        QueueLog($"Cached all {namespaceAssemblies.Count} namespaces and their respective assemblies in {sw.ElapsedMilliseconds}ms");
+        Log($"Cached all {namespaceAssemblies.Count} namespaces and their respective assemblies in {sw.ElapsedMilliseconds}ms");
 
         DoneMappingNamespacesToAssemblies = true;
         onNamespaceAssembliesCompleted.InvokeSafeParallel();
@@ -534,38 +586,6 @@ public class JeviLib : MelonMod
         return logMethods;
     }
 
-    // this things existence is because i didnt want to interrupt another log call and i didnt want to be tied to Unity's main thread, so here we are, checks and locks, or i think thats a principle of asynchronous code
-    private static async void LogFromQueue()
-    {
-#if DEBUG
-        Stopwatch sw = Stopwatch.StartNew();
-#endif
-        foreach (MethodInfo method in GetLogMethods())
-        {
-            Redirect.FromMethod(method, LogPre, false);
-            Hook.OntoMethod(method, LogPost);
-        }
-
-#if DEBUG
-        sw.Stop();
-        QueueLog($"Took {sw.ElapsedMilliseconds}ms to patch everything.");
-#endif
-        QueueLog("Started async logger thread");
-        while (true)
-        {
-            await Task.Delay(1);
-            while (!somethingIsLogging && toLog.TryDequeue(out string strLog))
-            {
-                Log(strLog);
-            }
-        }
-    }
-
-    // these *will* add execution time to every call to any melonmod logger, but given the fact that all they do is set a boolean, i think im fine
-    private static void LogPre() => somethingIsLogging = true;
-
-    private static void LogPost() => somethingIsLogging = false;
-
     #region MelonLogger replacements
 
     internal static void Log(string str, ConsoleColor conCol = ConsoleColor.Gray) => instance.LoggerInstance.Msg(conCol, str);
@@ -577,13 +597,6 @@ public class JeviLib : MelonMod
     internal static void Error(string str, Exception ex) => instance.LoggerInstance.Error(str ?? "null", ex);
 
     #endregion
-
-    /// <summary>
-    /// Enqueues a statement to be logged when the MelonLoader console window is free.
-    /// <para>Intended to be used off the main thread.</para>
-    /// </summary>
-    /// <param name="str">The string to be logged.</param>
-    internal static void QueueLog(string str) => toLog.Enqueue(str);
 
 #if DEBUG
     private void ClearStandardTokens()

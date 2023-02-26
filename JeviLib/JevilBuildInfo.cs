@@ -15,7 +15,7 @@ public static class JevilBuildInfo
     /// <summary>
     /// The version of JeviLib your mod will be built against.
     /// </summary>
-    public const string VERSION = "2.0.0";
+    public const string VERSION = "2.1.0";
 
     /// <summary>
     /// The Thunderstore page for JeviLib. I'm not sure why you'd need this but go for it.
@@ -23,7 +23,7 @@ public static class JevilBuildInfo
     public const string DOWNLOAD_LINK = "https://bonelab.thunderstore.io/package/extraes/JeviLibBL/";
 
     /// <summary>
-    /// Whether your mod was built with a debug version of JeviLib (it should).
+    /// Whether your mod was built with a debug version of JeviLib (it should be).
     /// </summary>
     public const bool DEBUG
 #if DEBUG

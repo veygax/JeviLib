@@ -19,7 +19,7 @@ public class PreferencesFile : Attribute
     /// <summary>
     /// Applies the <see cref="PreferencesFile"/> attribute to your class.
     /// </summary>
-    /// <param name="filePath">The file path, relative to <see cref="MelonUtils.UserDataDirectory"/>. <para>For example, so save in UserData/MelonPreferences.cfg, you would pass in <c>"./MelonPreferences.cfg"</c>.</para></param>
+    /// <param name="filePath">The file path, relative to <see cref="MelonUtils.UserDataDirectory"/>. <para>For example, to save in UserData/MelonPreferences.cfg, you would pass in <c>"./MelonPreferences.cfg"</c>.</para></param>
     public PreferencesFile(string filePath)
     {
         path = filePath;

@@ -15,6 +15,7 @@ namespace Jevil.Prefs;
 
 internal static class PrefsInternal
 {
+    // like a dictinoary, but doesnt stop GC of its PrefEntries values
     static readonly ConditionalWeakTable<string, PrefEntries> nameToEntries = new();
     static readonly Dictionary<Type, MethodInfo> genericCreateEnumElements = new();
     static readonly MethodInfo baseCreateEnumElement = typeof(MenuCategory).GetMethodEasy(nameof(MenuCategory.CreateEnumElement));
@@ -23,14 +24,21 @@ internal static class PrefsInternal
 
     public static PrefEntries RegisterPreferences(Type type, string categoryName, bool prefSubcategory, Color categoryColor, string filePath)
     {
-        MelonPreferences_Category mpCat = MelonPreferences.CreateCategory(categoryName); // interally first checks for GetCategory
+        PrefEntries ret = nameToEntries.GetValue(categoryName, (key) => new PrefEntries(MelonPreferences.CreateCategory(key), MenuManager.CreateCategory(key, categoryColor)));
+        MelonPreferences_Category mpCat = ret.MelonPrefsCategory; // interally first checks for GetCategory
+        MenuCategory bmCat = ret.BoneMenuCategory;
+        if (prefSubcategory) bmCat = bmCat.CreateCategory(Preferences.prefSubcategoryName, categoryColor);
+
         if (!filePath.EndsWith("MelonPreferences.cfg")) // only set file path if its not MP.cfg
             mpCat.SetFilePath(filePath, true, false); // actually get the values
-        MenuCategory bmCat = MenuManager.CreateCategory(categoryName, categoryColor);
-        if (prefSubcategory) bmCat = bmCat.CreateCategory(Preferences.prefSubcategoryName, categoryColor);
-        PrefEntries ret = nameToEntries.GetValue(categoryName, (_) => new PrefEntries(mpCat, bmCat));
 
+        RegisterPreferences(type, mpCat, bmCat);
+        
+        return ret;
+    }
 
+    public static void RegisterPreferences(Type type, MelonPreferences_Category mpCat, MenuCategory bmCat)
+    {
         FieldInfo[] staticFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
         MethodInfo[] staticMethods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
 
@@ -62,19 +70,17 @@ internal static class PrefsInternal
         }
 #endif
 
-        RegisterPrefAttr(type, staticFields, ret);
-        RegisterRangeAttr(type, staticFields, ret);
-        RegisterMethods(type, staticMethods, ret);
+        RegisterPrefAttr(type, staticFields, mpCat, bmCat);
+        RegisterRangeAttr(type, staticFields, mpCat, bmCat);
+        RegisterMethods(type, staticMethods, bmCat); // methods arent saved to melonprefs
 
 #if DEBUG
-        JeviLib.Log($"Created {mpCat.Entries.Count} entries in the preference category named {categoryName}");
+        JeviLib.Log($"Created {mpCat.Entries.Count} entries in the MelonPrefs '{mpCat.DisplayName}' category and {bmCat.Elements.Count} elements in the BoneMenu '{bmCat.Name}' category");
 #endif
 
         if (mpCat.Entries.Count != 0) mpCat.SaveToFile(false);
 
         //nameToEntries.Add(categoryName, ret); dont need, GetOrCreate works fine
-
-        return ret;
     }
 
     private static MelonPreferences_Entry<T> SetEntry<T>(MelonPreferences_Category mpCategory, FieldInfo field, out T toSet, string desc = "")
@@ -103,11 +109,8 @@ internal static class PrefsInternal
         };
     
 
-    private static void RegisterPrefAttr(Type type, FieldInfo[] fields, PrefEntries prefEntries)
+    private static void RegisterPrefAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, MenuCategory bmCat)
     {
-        MelonPreferences_Category mpCat = prefEntries.MelonPrefsCategory;
-        MenuCategory bmCat = prefEntries.BoneMenuCategory;
-
         foreach (FieldInfo field in fields)
         {
             var ep = field.GetCustomAttribute<Pref>();
@@ -193,11 +196,8 @@ internal static class PrefsInternal
         }
     }
 
-    private static void RegisterRangeAttr(Type type, FieldInfo[] fields, PrefEntries prefEntries)
+    private static void RegisterRangeAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, MenuCategory bmCat)
     {
-        MelonPreferences_Category mpCat = prefEntries.MelonPrefsCategory;
-        MenuCategory bmCat = prefEntries.BoneMenuCategory;
-
         foreach (var field in fields)
         {
             var rp = field.GetCustomAttribute<RangePref>();
@@ -231,7 +231,7 @@ internal static class PrefsInternal
         }
     }
 
-    private static void RegisterMethods(Type type, MethodInfo[] methods, PrefEntries prefEntries)
+    private static void RegisterMethods(Type type, MethodInfo[] methods, MenuCategory bmCat)
     {
         foreach (MethodInfo method in methods)
         {
@@ -260,7 +260,7 @@ internal static class PrefsInternal
 #if DEBUG
 
 #endif
-            prefEntries.BoneMenuCategory.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+            bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
 #if DEBUG
             JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
 #endif

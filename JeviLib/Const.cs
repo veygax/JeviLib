@@ -36,4 +36,8 @@ public static class Const
     /// Because <see cref="Material.mainTexture"/> doesn't work on URP Lit, you must use <see cref="Material.GetTexture(string)"/> and <see cref="Material.SetTexture(string, Texture)"/> with this.
     /// </summary>
     public const string UrpLitMainTexName = "_BaseMap";
+    /// <summary>
+    /// The shader property ID of <see cref="UrpLitMainTexName"/> calculated using <see cref="Shader.PropertyToID(string)"/>
+    /// </summary>
+    public static readonly int UrpLitMainTexID = Shader.PropertyToID(UrpLitMainTexName);
 }

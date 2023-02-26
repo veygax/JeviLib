@@ -15,6 +15,7 @@ using MethodAttributes = Mono.Cecil.MethodAttributes;
 using ParameterAttributes = Mono.Cecil.ParameterAttributes;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace JevilForkedProcess;
 
@@ -30,12 +31,62 @@ internal class Program
             Console.Error.WriteLine("Need path to ML UserData folder!");
             Console.WriteLine("Paste/drag in the path to your MelonLoader UserData folder!");
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write(": ");
+            Console.Write("My UserData folder is located at: ");
             Console.ResetColor();
             args = new string[] {
                 Console.ReadLine().Trim().Trim('"'),
             };
         }
+
+        ForkIfNeeded(args);
+
+
+#if DEBUG
+        if (!Debugger.IsAttached) Debugger.Launch();
+#endif
+
+        string userDataFolder = string.Join(" ", args);
+        string jsmPath = Path.Combine(userDataFolder, "JevilSM");
+        string logPath = Path.Combine(jsmPath, "FixerLog.log");
+        string newSmPath = Path.Combine(jsmPath, "Il2Cpp.dll");
+        string il2SmPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Dependencies", "SupportModules", "Il2Cpp.dll");
+        string unitaskPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UniTask.dll");
+        string il2MscorlibPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "Il2Cppmscorlib.dll");
+        string unhollowerBasePath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UnhollowerBaseLib.dll");
+        string unityCoreModulePath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UnityEngine.CoreModule.dll");
+        if (!Directory.Exists(jsmPath)) Directory.CreateDirectory(jsmPath);
+        if (File.Exists(logPath)) File.Delete(logPath);
+        logFile = File.CreateText(logPath);
+        Log("Logging to " + logPath);
+
+        WaitForFileToBeReadable(il2SmPath);
+        Log("BONELAB exited, continuing execution.");
+
+        Log("Support module updating can now begin.");
+        Jevil.Patching.SupportModuleOverwriter.Log = Log;
+        Jevil.Patching.SupportModuleOverwriter.Error = Error;
+        Jevil.Patching.SupportModuleOverwriter.Execute(newSmPath, il2SmPath);
+        Log("Support module updating completed successfully.");
+
+        Log("UnityEngine CoreModule modification can now begin");
+        Jevil.Patching.UnityCoreModuleCeciler.Log = Log;
+        Jevil.Patching.UnityCoreModuleCeciler.Error = Error;
+        Jevil.Patching.UnityCoreModuleCeciler.Execute(unityCoreModulePath, il2MscorlibPath, userDataFolder);
+        Log("UnityEngine CoreModule modification finished successfully");
+
+        Log("UniTask modification can now begin.");
+        Jevil.Patching.UniTaskCeciler.Log = Log;
+        Jevil.Patching.UniTaskCeciler.Error = Error;
+        Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath, userDataFolder);
+        Log("Successfully replaced IL2CPP support module and patched UniTask.dll!");
+        Log("For users: You should now be able to use any mod that requires JeviLib v2.0.0 or higher");
+        Log("For developers: Your coroutines can now yield other coroutines or yield WaitForSeconds/WaitForSecondsRealtime, and it will work as expected. You can also await a UniTask and UniTask<T> from a Task");
+        Log("              - (AsyncOperations do not work unfortunately. If it is a big enough deal, ping me, extraes#2048, about it and I'll see what I can do)");
+    }
+
+    private static void ForkIfNeeded(string[] args)
+    {
+        return;
 
         // Autofork if process is BONELAB
         Process me = Process.GetCurrentProcess();
@@ -60,58 +111,23 @@ internal class Program
             newProc.Start();
             Environment.Exit(0);
         }
-
-
-#if DEBUG
-        if (!Debugger.IsAttached) Debugger.Launch();
-#endif
-
-        string userDataFolder = string.Join(" ", args);
-        string jsmPath = Path.Combine(userDataFolder, "JevilSM");
-        string logPath = Path.Combine(jsmPath, "FixerLog.log");
-        string newSmPath = Path.Combine(jsmPath, "Il2Cpp.dll");
-        string il2SmPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Dependencies", "SupportModules", "Il2Cpp.dll");
-        string unitaskPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UniTask.dll");
-        string il2MscorlibPath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "Il2Cppmscorlib.dll");
-        string unhollowerBasePath = Path.Combine(userDataFolder, "..", "MelonLoader", "Managed", "UnhollowerBaseLib.dll");
-        if (!Directory.Exists(jsmPath)) Directory.CreateDirectory(jsmPath);
-        if (File.Exists(logPath)) File.Delete(logPath);
-        logFile = File.CreateText(logPath);
-        Log("Logging to " + logPath);
-
-        Log($"Current parent process: {parent?.ProcessName ?? "<none>"}");
-
-        WaitForBonelabExit();
-        Log("BONELAB exited, continuing execution.");
-
-        Log("Support module updating can now begin.");
-        Jevil.Patching.SupportModuleOverwriter.Log = Log;
-        Jevil.Patching.SupportModuleOverwriter.Error = Error;
-        Jevil.Patching.SupportModuleOverwriter.Execute(newSmPath, il2SmPath);
-        Log("Support module updating completed successfully.");
-
-        Log("UniTask modification can now begin.");
-        Jevil.Patching.UniTaskCeciler.Log = Log;
-        Jevil.Patching.UniTaskCeciler.Error = Error;
-        Jevil.Patching.UniTaskCeciler.Execute(unitaskPath, il2MscorlibPath, unhollowerBasePath, userDataFolder);
-        Log("Successfully replaced IL2CPP support module and patched UniTask.dll!");
-        Log("For users: You should now be able to use any mod that requires JeviLib v2.0.0 or higher");
-        Log("For developers: Your coroutines can now yield other coroutines or yield WaitForSeconds/WaitForSecondsRealtime, and it will work as expected. You can also await a UniTask and UniTask<T> from a Task");
-        Log("              - (AsyncOperations do not work unfortunately. If it is a big enough deal, ping me, extraes#2048, about it and I'll see what I can do)");
     }
 
-    static void WaitForBonelabExit()
+    static void WaitForFileToBeReadable(string lockedFile)
     {
-        Process bonelab = Process.GetProcessesByName("BONELAB_Steam_Windows64").FirstOrDefault() 
-            ?? Process.GetProcessesByName("BONELAB_Oculus_Windows64").FirstOrDefault();
-
-        if (bonelab == null)
+        while (true)
         {
-            Log("Couldn't find BONELAB process. Continuing with fixes.");
-            return;
+            try
+            {
+                var fs = new FileStream(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                fs.Dispose();
+                return;
+            }
+            catch
+            {
+                Thread.Sleep(1000);
+            }
         }
-        Log("Waiting for BONELAB to exit. PID = " + bonelab.Id);
-        bonelab.WaitForExit();
     }
 
     #region https://stackoverflow.com/questions/394816/how-to-get-parent-process-in-net-in-managed-way
