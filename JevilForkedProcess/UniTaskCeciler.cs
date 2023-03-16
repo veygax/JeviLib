@@ -97,17 +97,14 @@ internal static class UniTaskCeciler
 
 
         Log("Looking for UniTask Awaiter OnCompleted method definitions...");
-        const string unhollowedMethodName =
-#if JEVIL_MELONMOD
-            nameof(ICriticalNotifyCompletion.UnsafeOnCompleted);
-#else
-            nameof(INotifyCompletion.OnCompleted);
-#endif
-        MethodDefinition uniTaskAwaiterOnCompletedGeneric = uniTaskAwaiterGeneric.Methods.First(m => m.Name == unhollowedMethodName);
-        MethodDefinition uniTaskAwaiterOnCompletedUntyped = uniTaskAwaiterUntyped.Methods.First(m => m.Name == unhollowedMethodName);
-        MethodDefinition yieldAwaiterOnCompleted = yieldAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
-        MethodDefinition mainThreadOnCompleted = switchToMainThreadAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
-        MethodDefinition threadPoolOnCompleted = switchToThreadPoolAwaiter.Methods.First(m => m.Name == unhollowedMethodName);
+        const string unhollowedMethodName = nameof(INotifyCompletion.OnCompleted);
+        const string altMethodName = nameof(ICriticalNotifyCompletion.UnsafeOnCompleted);
+
+        MethodDefinition uniTaskAwaiterOnCompletedGeneric = uniTaskAwaiterGeneric.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName) ?? uniTaskAwaiterGeneric.Methods.First(m => m.Name == altMethodName);
+        MethodDefinition uniTaskAwaiterOnCompletedUntyped = uniTaskAwaiterUntyped.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName) ?? uniTaskAwaiterUntyped.Methods.First(m => m.Name == altMethodName);
+        MethodDefinition yieldAwaiterOnCompleted = yieldAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName) ?? yieldAwaiter.Methods.First(m => m.Name == altMethodName);
+        MethodDefinition mainThreadOnCompleted = switchToMainThreadAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName) ?? switchToMainThreadAwaiter.Methods.First(m => m.Name == altMethodName);
+        MethodDefinition threadPoolOnCompleted = switchToThreadPoolAwaiter.Methods.FirstOrDefault(m => m.Name == unhollowedMethodName) ?? switchToThreadPoolAwaiter.Methods.First(m => m.Name == altMethodName);
         Log("Success!");
 
         // Clear previous runs
