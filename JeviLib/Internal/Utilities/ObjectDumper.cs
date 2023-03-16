@@ -13,13 +13,12 @@ using UnhollowerBaseLib.Runtime;
 
 namespace Jevil.Internal;
 
-internal static partial class Utilities
+internal static partial class UtilitiesImpl
 {
-
-
     // Modified version of https://github.com/lassevk/ObjectDumper/blob/main/src/ObjectDumper/Dumper.cs
-    internal static void InternalDump(int indentationLevel, string name, object value, StringBuilder builder, ObjectIDGenerator idGenerator, bool recursiveDump)
+    internal static void InternalDump(int indentationLevel, string name, object value, StringBuilder builder, ObjectIDGenerator idGenerator, int maxRecurse)
     {
+        bool recursiveDump = maxRecurse > 0;
         var indentation = new string(' ', indentationLevel * 3);
 
         if (value == null)
@@ -118,19 +117,19 @@ internal static partial class Utilities
                 try
                 {
                     object propertyValue = pi.GetValue(value, null);
-                    InternalDump(indentationLevel + 1, pi.Name, propertyValue, builder, idGenerator, true);
+                    InternalDump(indentationLevel + 1, pi.Name, propertyValue, builder, idGenerator, maxRecurse);
                 }
                 catch (TargetInvocationException ex)
                 {
-                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, false);
+                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, 0);
                 }
                 catch (ArgumentException ex)
                 {
-                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, false);
+                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, 0);
                 }
                 catch (RemotingException ex)
                 {
-                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, false);
+                    InternalDump(indentationLevel + 1, pi.Name, ex, builder, idGenerator, 0);
                 }
             }
             builder.AppendFormat("{0}   }}", indentation);
@@ -144,11 +143,11 @@ internal static partial class Utilities
                 try
                 {
                     object fieldValue = field.GetValue(value);
-                    InternalDump(indentationLevel + 1, field.Name, fieldValue, builder, idGenerator, true);
+                    InternalDump(indentationLevel + 1, field.Name, fieldValue, builder, idGenerator, maxRecurse);
                 }
                 catch (TargetInvocationException ex)
                 {
-                    InternalDump(indentationLevel + 1, field.Name, ex, builder, idGenerator, false);
+                    InternalDump(indentationLevel + 1, field.Name, ex, builder, idGenerator, maxRecurse);
                 }
             }
             builder.AppendFormat("{0}   }}", indentation);
@@ -163,11 +162,11 @@ internal static partial class Utilities
                 try
                 {
                     object fieldValue = collectionItem;
-                    InternalDump(indentationLevel + 1, "collectionItem", fieldValue, builder, idGenerator, true);
+                    InternalDump(indentationLevel + 1, "collectionItem", fieldValue, builder, idGenerator, maxRecurse);
                 }
                 catch (TargetInvocationException ex)
                 {
-                    InternalDump(indentationLevel + 1, "collectionItem", ex, builder, idGenerator, false);
+                    InternalDump(indentationLevel + 1, "collectionItem", ex, builder, idGenerator, 0);
                 }
             }
         }
