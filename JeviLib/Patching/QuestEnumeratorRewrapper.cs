@@ -1,5 +1,4 @@
-﻿using MelonLoader.Support;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
@@ -16,7 +15,7 @@ namespace Jevil.Patching;
 internal static class QuestEnumeratorRewrapper
 {
     // basically a paste of the code i used to write the new enumerator wrapper
-    private class JevilWrapper
+    private class JevilWrapper : IEnumerator
     {
         Stack<IEnumerator> enumerators = new(1);
         bool useScaledTime;
@@ -27,13 +26,13 @@ internal static class QuestEnumeratorRewrapper
             enumerators.Push(enumerator);
         }
 
-        public Il2CppSystem.Object Current
+        public object Current
         {
             get
             {
                 return enumerators.Peek().Current switch
                 {
-                    IEnumerator next => new MonoEnumeratorWrapper(next), // this switch case will likely never get called due to enumerator stack
+                    IEnumerator next => new JevilWrapper(next), // this switch case will likely never get called due to enumerator stack
                     Il2CppSystem.Object il2obj => il2obj,
                     null => null,
                     _ => throw new NotSupportedException($"{enumerators.Peek().GetType().FullName}: Unsupported type {enumerators.Peek().Current.GetType().FullName}")
@@ -107,6 +106,7 @@ internal static class QuestEnumeratorRewrapper
                 return false;
             }
         }
+
         public void Reset()
         {
             for (int i = enumerators.Count - 1; i >= 1; i--)
@@ -118,42 +118,15 @@ internal static class QuestEnumeratorRewrapper
         }
     }
 
-    static ConditionalWeakTable<MonoEnumeratorWrapper, JevilWrapper> wrapperWrappers = new();
-
     public static void Init()
     {
-        // use redirect because its easier and the patch shield disabler only takes effect for patches performed after class patches are applied
-        Redirect.FromMethod(typeof(MonoEnumeratorWrapper).GetMethod(nameof(MonoEnumeratorWrapper.MoveNext)), MoveNextButBetter, true);
-        Redirect.FromMethod(typeof(MonoEnumeratorWrapper).GetMethod(nameof(MonoEnumeratorWrapper.Reset)), ResetButBetter, true);
-        Redirect.FromMethod(typeof(MonoEnumeratorWrapper).GetProperty(nameof(MonoEnumeratorWrapper.Current)).GetMethod, CurrentButBetter, true);
-        JeviLib.instance.HarmonyInstance.Patch(typeof(MonoEnumeratorWrapper).GetConstructor(new Type[] { typeof(IEnumerator) }), postfix: typeof(QuestEnumeratorRewrapper).GetMethod(nameof(QuestEnumeratorRewrapper.ConstructorPostfix)).ToNewHarmonyMethod());
+        // use harmony directly because i cant remember if jevil patching supports ref parameters/changing parameters, and i cannot be fucked to check
+        JeviLib.instance.HarmonyInstance.Patch(typeof(MelonCoroutines).GetMethod(nameof(MelonCoroutines.Start)), prefix: Utilities.ToHarmony(WrapIncomingEnumerator));
     }
 
-    static bool MoveNextButBetter(MonoEnumeratorWrapper mew)
+    static void WrapIncomingEnumerator(ref IEnumerator routine)
     {
-        if (wrapperWrappers.TryGetValue(mew, out JevilWrapper jw))
-            return jw.MoveNext();
-        else throw new KeyNotFoundException($"MelonLoader wrapper wrapping {mew.enumerator.GetType().FullName} was not found in wrapperWrappers collection.");
-    }
-
-    public static Il2CppSystem.Object CurrentButBetter(MonoEnumeratorWrapper mew)
-    {
-        if (wrapperWrappers.TryGetValue(mew, out JevilWrapper jw))
-            return jw.Current;
-        else throw new KeyNotFoundException($"MelonLoader wrapper wrapping {mew.enumerator.GetType().FullName} was not found in wrapperWrappers collection.");
-    }
-
-    public static void ResetButBetter(MonoEnumeratorWrapper mew)
-    {
-        if (wrapperWrappers.TryGetValue(mew, out JevilWrapper jw))
-            jw.Reset();
-        else throw new KeyNotFoundException($"MelonLoader wrapper wrapping {mew.enumerator.GetType().FullName} was not found in wrapperWrappers collection.");
-    }
-
-    // ConstructorInfo does not inherit MethodInfo. This means we are beholden to Harmony notation
-    public static void ConstructorPostfix(MonoEnumeratorWrapper __instance, IEnumerator _enumerator)
-    {
-        wrapperWrappers.Add(__instance, new JevilWrapper(_enumerator));
+        routine = new JevilWrapper(routine);
     }
 
     // PatchShield also checks for PatchShield on Types and Methods but i cannot be fucked to find what i need to patch an abstract method
