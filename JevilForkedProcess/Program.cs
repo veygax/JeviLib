@@ -115,12 +115,12 @@ internal class Program
 
     static void WaitForFileToBeReadable(string lockedFile)
     {
+        byte[] bytes = File.ReadAllBytes(lockedFile);
         while (true)
         {
             try
             {
-                var fs = new FileStream(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                fs.Dispose();
+                File.WriteAllBytes(lockedFile, bytes);
                 return;
             }
             catch
