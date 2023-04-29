@@ -37,6 +37,11 @@ public static class Const
     /// </summary>
     public const string UrpLitMainTexName = "_BaseMap";
     /// <summary>
+    /// The domain used for Mod Stats requests.
+    /// <para>See: <see cref="ModStats.StatsEntry"/>.</para>
+    /// </summary>
+    public const string MOD_STATS_DOMAIN = "https://stats.extraes.xyz/";
+    /// <summary>
     /// The shader property ID of <see cref="UrpLitMainTexName"/> calculated using <see cref="Shader.PropertyToID(string)"/>
     /// </summary>
     public static readonly int UrpLitMainTexID = Shader.PropertyToID(UrpLitMainTexName);
