@@ -14,6 +14,9 @@ namespace Jevil.Tweening;
 /// </summary>
 public static class Tweener
 {
+    internal static Func<float, float> EasingInterpolator = inVal => (0f, 1f).Interpolate(inVal, true);
+    internal static Func<float, float> LinearInterpolator = inVal => (0f, 1f).Interpolate(inVal, false);
+
     internal static readonly List<TweenBase> tweens = new(32);
 
     internal static void UpdateAll()

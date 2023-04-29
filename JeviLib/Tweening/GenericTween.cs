@@ -40,6 +40,7 @@ public abstract class GenericTween<T> : Tween<T>
 
     /// <summary>
     /// Update the Tween according to its progress.
+    /// <para>You will need to call <see cref="TweenBase.interpolator"/> by yourself, if you called <see cref="TweenTweenExtensions.UseCustomInterpolator{T}(T, Func{float, float})"/></para>
     /// </summary>
     /// <param name="completion">A value from 0 to 1 representing how complete the Tween is.</param>
     protected abstract override void Update(float completion);

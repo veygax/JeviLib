@@ -48,10 +48,10 @@ public sealed class GenericFloatTween : Tween<float>
     /// <summary>
     /// Call the setter with the new value
     /// </summary>
-    /// <param name="completion">How far along the tween is.</param>
+    /// <param name="completion">How far along the tween is, from 0 to 1.</param>
     protected override void Update(float completion)
     {
-        float value = (startValue, endValue).Interpolate(completion, IsEasing);
+        float value = interpolator(completion);
         setter(value);
     }
 }

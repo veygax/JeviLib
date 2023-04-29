@@ -32,7 +32,7 @@ public sealed class PositionTween : Tween<Vector3>
     /// <inheritdoc/>
     protected override void Update(float completion)
     {
-        float lerpComplete = IsEasing ? floatfloat.Interpolate(completion) : completion;
+        float lerpComplete = interpolator(completion);
         Vector3 newVal = Vector3.Lerp(startValue, endValue, lerpComplete);
         setter(newVal);
     }

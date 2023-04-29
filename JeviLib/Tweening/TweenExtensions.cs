@@ -43,7 +43,7 @@ public static class TweenExtensions
     }
 
     /// <summary>
-    /// Tweens the given transform's local space position.
+    /// Tweens the given transform's scale in local space.
     /// <br>If it has a <see cref="Rigidbody"/>, it's recommended to set <see cref="Rigidbody.isKinematic"/> to <see langword="true"/>, as this will not respect physics.</br>
     /// </summary>
     /// <param name="t">The Transform to be moved.</param>

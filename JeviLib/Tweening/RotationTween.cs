@@ -32,7 +32,7 @@ public sealed class RotationTween : Tween<Quaternion>
     /// <inheritdoc/>
     protected override void Update(float completion)
     {
-        float lerpComplete = IsEasing ? floatfloat.Interpolate(completion) : completion;
+        float lerpComplete = interpolator(completion);
         // use quaterntion.lerp because aint no fuckin way im gonna dare to touch the bullfuckery that is quaternions
         Quaternion current = Quaternion.Lerp(startValue, endValue, lerpComplete);
         setter(current);

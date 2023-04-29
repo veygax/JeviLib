@@ -24,7 +24,7 @@ public static class TweenTweenExtensions
     /// <summary>
     /// Sets the value of <see cref="TweenBase.IsRealtime"/>. Best used immediately after Tween instantiation. Using mid-tween is not intended and the behavior is not guaranteed.
     /// </summary>
-    /// <typeparam name="T">A type, where T extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
+    /// <typeparam name="T">A type, where <typeparamref name="T"/> extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
     /// <param name="tween">The tween to make realtime or not realtime.</param>
     /// <param name="value">The value to assign to <see cref="TweenBase.IsRealtime"/></param>
     /// <returns>The original <paramref name="tween"/></returns>
@@ -36,11 +36,11 @@ public static class TweenTweenExtensions
 
     /// <summary>
     /// Makes actions invoke using <see cref="ActionExtensions.InvokeSafeSync(Action)"/>, blocking the main thread but allowing you to call Unity methods and properties.
-    /// <para><b>!!!</b> This does <b>NOT</b> invoke all queued Actions. <b>!!!</b></para>
+    /// <para><b>!!!</b> This does <b>NOT</b> invoke all queued Actions immediately. <b>!!!</b></para>
     /// </summary>
-    /// <typeparam name="T">A type, where T extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
+    /// <typeparam name="T">A type, where <typeparamref name="T"/> extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
     /// <param name="tween">The tween to make realtime or not realtime.</param>
-    /// <param name="value">The value to assign to <see cref="TweenBase.IsRealtime"/></param>
+    /// <param name="value">Whether or not to forcefully invoke all queued</param>
     /// <returns>The original <paramref name="tween"/></returns>
     public static T ForceInvokeQueued<T>(this T tween, bool value = true) where T : TweenBase
     {
@@ -52,8 +52,8 @@ public static class TweenTweenExtensions
     /// Queues an <see cref="Action"/> to run when <paramref name="tween"/> finishes.
     /// <br>Will be skipped if an Action that has already been queued throws an Exception, unless <see cref="ForceInvokeQueued"/> has been called.</br>
     /// </summary>
-    /// <typeparam name="T">A type, where T extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
-    /// <param name="tween">The tween to be </param>
+    /// <typeparam name="T">A type, where <typeparamref name="T"/> extends <see cref="TweenBase"/>. Most likely extending <see cref="Tween{T}"/>.</typeparam>
+    /// <param name="tween">The tween to queue an Action to run after.</param>
     /// <param name="fun">The lambda, method, or Action to be called upon finish.</param>
     /// <returns></returns>
     public static T RunOnFinish<T>(this T tween, Action fun) where T : TweenBase
@@ -138,6 +138,7 @@ public static class TweenTweenExtensions
     public static T DontEase<T>(this T tween) where T : TweenBase
     {
         tween.IsEasing = false;
+        tween.interpolator = Tweener.LinearInterpolator;
         return tween;
     }
 
@@ -151,6 +152,22 @@ public static class TweenTweenExtensions
     public static T DoEase<T>(this T tween) where T : TweenBase
     {
         tween.IsEasing = true;
+        tween.interpolator = Tweener.EasingInterpolator;
+        return tween;
+    }
+
+    /// <summary>
+    /// Makes the <paramref name="tween"/> ease according to your custom interpolation function.
+    /// <para>Sets <see cref="TweenBase.IsEasing"/> to false.</para>
+    /// </summary>
+    /// <typeparam name="T">Any tween, usually inheriting <see cref="Tween{T}"/>.</typeparam>
+    /// <param name="tween">Your tween</param>
+    /// <param name="interpolator">An interpolation function that takes in a 0-1 value and returns a value on the scale of 0-1, but can be higher or lower according to your needs.</param>
+    /// <returns>The tween being extended.</returns>
+    public static T UseCustomInterpolator<T>(this T tween, Func<float, float> interpolator) where T : TweenBase
+    {
+        tween.IsEasing = false;
+        tween.interpolator = interpolator;
         return tween;
     }
 }

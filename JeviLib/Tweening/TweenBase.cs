@@ -74,6 +74,11 @@ public class TweenBase
     internal Action invokeAfter;
     internal bool forceInvokeAll;
 
+    /// <summary>
+    /// <see cref="TweenTweenExtensions.UseCustomInterpolator{T}(T, Func{float, float})"/>
+    /// </summary>
+    protected internal Func<float, float> interpolator = Tweener.EasingInterpolator;
+
     internal void StartInternal()
     {
         Active = true;
