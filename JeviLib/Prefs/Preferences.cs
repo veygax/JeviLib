@@ -99,11 +99,26 @@ public sealed class Preferences : Attribute
     /// </summary>
     /// <param name="t"></param>
     /// <param name="mpCat">The <see cref="MelonPreferences_Category"/> to register preferences under.</param>
-    /// <param name="bmCat">The <see cref="MenuCategory"/> to register <see cref="MenuElement"/>s under.</param>
+    /// <param name="bmCat">The <see cref="MenuCategory"/> to register both field and method <see cref="MenuElement"/>s under.</param> 
     /// <remarks><i>This was done for Chaos. If you need a similar functionality to Chaos's preferences system, this is the one.</i></remarks>
     public static void RegisterUnder(Type t, MelonPreferences_Category mpCat, MenuCategory bmCat)
     {
-        PrefsInternal.RegisterPreferences(t, mpCat, bmCat);
+        RegisterUnder(t, mpCat, bmCat, bmCat);
+    }
+
+    /// <summary>
+    /// Registers a type's preferences under a manually defined <see cref="MelonPreferences_Category"/> and <see cref="MenuCategory"/>.
+    /// <para>Separates method and field preferences into different BoneMenu categories.</para>
+    /// <para>Given type does not need the <see cref="Preferences"/> attribute.</para>
+    /// </summary>
+    /// <param name="t"></param>
+    /// <param name="mpCat">The <see cref="MelonPreferences_Category"/> to register preferences under.</param>
+    /// <param name="fieldCategory">The <see cref="MenuCategory"/> to register field <see cref="MenuElement"/>s under.</param>
+    /// <param name="methodCategory">The <see cref="MenuCategory"/> to register method <see cref="FunctionElement"/>s under. Only necessary if you define method preferences.</param>
+    /// <remarks><i>This was done for Chaos. If you need a similar functionality to Chaos's preferences system, this is the one.</i></remarks>
+    public static void RegisterUnder(Type t, MelonPreferences_Category mpCat, MenuCategory fieldCategory, MenuCategory methodCategory)
+    {
+        PrefsInternal.RegisterPreferences(t, mpCat, fieldCategory, methodCategory);
     }
 
     private static PrefEntries Register(Type type, Preferences attribute, Color color, string filePath, string name)

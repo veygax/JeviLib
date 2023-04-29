@@ -26,18 +26,18 @@ internal static class PrefsInternal
     {
         PrefEntries ret = nameToEntries.GetValue(categoryName, (key) => new PrefEntries(MelonPreferences.CreateCategory(key), MenuManager.CreateCategory(key, categoryColor)));
         MelonPreferences_Category mpCat = ret.MelonPrefsCategory; // interally first checks for GetCategory
-        MenuCategory bmCat = ret.BoneMenuCategory;
-        if (prefSubcategory) bmCat = bmCat.CreateCategory(Preferences.prefSubcategoryName, categoryColor);
+        MenuCategory methodCategory = ret.BoneMenuCategory;
+        MenuCategory fieldCategory = prefSubcategory ? ret.BoneMenuCategory.CreateCategory(Preferences.prefSubcategoryName, categoryColor) : ret.BoneMenuCategory;
 
         if (!filePath.EndsWith("MelonPreferences.cfg")) // only set file path if its not MP.cfg
             mpCat.SetFilePath(filePath, true, false); // actually get the values
 
-        RegisterPreferences(type, mpCat, bmCat);
+        RegisterPreferences(type, mpCat, fieldCategory, methodCategory);
         
         return ret;
     }
 
-    public static void RegisterPreferences(Type type, MelonPreferences_Category mpCat, MenuCategory bmCat)
+    public static void RegisterPreferences(Type type, MelonPreferences_Category mpCat, MenuCategory fieldCategory, MenuCategory methodCategory)
     {
         FieldInfo[] staticFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
         MethodInfo[] staticMethods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
@@ -70,12 +70,16 @@ internal static class PrefsInternal
         }
 #endif
 
-        RegisterPrefAttr(type, staticFields, mpCat, bmCat);
-        RegisterRangeAttr(type, staticFields, mpCat, bmCat);
-        RegisterMethods(type, staticMethods, bmCat); // methods arent saved to melonprefs
+        RegisterPrefAttr(type, staticFields, mpCat, fieldCategory);
+        RegisterRangeAttr(type, staticFields, mpCat, fieldCategory);
+        RegisterMethods(type, staticMethods, methodCategory); // methods arent saved to melonprefs
 
 #if DEBUG
-        JeviLib.Log($"Created {mpCat.Entries.Count} entries in the MelonPrefs '{mpCat.DisplayName}' category and {bmCat.Elements.Count} elements in the BoneMenu '{bmCat.Name}' category");
+        if (methodCategory == fieldCategory) 
+            JeviLib.Log($"Created {mpCat.Entries.Count} entries in the MelonPrefs '{mpCat.DisplayName}' category and {fieldCategory.Elements.Count} elements in the BoneMenu '{fieldCategory.Name}' category");
+        else
+            JeviLib.Log($"Created {mpCat.Entries.Count} entries in the MelonPrefs '{mpCat.DisplayName}' category, {fieldCategory.Elements.Count} field elements in the BoneMenu '{fieldCategory.Name}' category, and {methodCategory.Elements.Count} method elements in '{methodCategory.Name}'");
+
 #endif
 
         if (mpCat.Entries.Count != 0) mpCat.SaveToFile(false);
@@ -128,7 +132,7 @@ internal static class PrefsInternal
 #if DEBUG
                 JeviLib.Warn($"BoneMenu does not support string elements. Preference field is {type.FullName}.{type.FullDescription()}");
 #endif
-                //bmCat.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                //fieldCategory.CreateStringElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(bool))
             {
@@ -143,7 +147,7 @@ internal static class PrefsInternal
 #if DEBUG
                 JeviLib.Warn($"BoneMenu does not support color elements. Preference field is {type.FullName}.{type.FullDescription()}");
 #endif
-                //bmCat.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                //fieldCategory.CreateColorElement(readableName, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType.IsEnum)
             {
@@ -257,13 +261,36 @@ internal static class PrefsInternal
 #endif
                 deleg8 = () => { method.Invoke(null, NoParameters); };
             }
-#if DEBUG
 
-#endif
-            bmCat.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+            MenuCategory targetCategory = CreateSubmenu(bmCat, pref);
+
+            targetCategory.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
 #if DEBUG
             JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
 #endif
         }
+    }
+
+    private static MenuCategory CreateSubmenu(MenuCategory bmRoot, Pref pref)
+    {
+        if (string.IsNullOrWhiteSpace(pref.desc)) return bmRoot;
+        string[] pathParts = pref.desc.Split('/');
+
+        MenuCategory ret = bmRoot;
+        for (int i = 0; i < pathParts.Length; i++)
+        {
+            MenuCategory target = ret.Elements.OfType<MenuCategory>().FirstOrDefault(mc => mc.Name == pathParts[i]);
+            if (target == null)
+            {
+#if DEBUG
+                JeviLib.Log($"Creating submenu '{pathParts[i]}' on Menu '{bmRoot.Name}' for part {i + 1} of submenu path {pref.desc}");
+#endif
+                target = bmRoot.CreateCategory(pathParts[i], pref.color);
+            }
+
+            ret = target;
+        }
+
+        return ret;
     }
 }
