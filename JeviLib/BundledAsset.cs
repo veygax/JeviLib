@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnhollowerRuntimeLib;
 using UnityEngine;
 
 namespace Jevil;
@@ -15,6 +16,10 @@ namespace Jevil;
 /// <typeparam name="T">Any unity object. Not recommended to be a component, but a <see cref="Material"/> or <see cref="GameObject"/> is fine.</typeparam>
 public class BundledAsset<T> where T : UnityEngine.Object
 {
+#if DEBUG
+    static Dictionary<AssetBundle, string[]> assetPaths = new(UnityObjectComparer<AssetBundle>.Instance);
+#endif
+
     /// <summary>
     /// The path which holds an object.
     /// </summary>
@@ -124,11 +129,25 @@ public class BundledAsset<T> where T : UnityEngine.Object
         if (asset.INOC())
         {
 #if DEBUG
-            if (bundle.INOC()) throw new InvalidOperationException("BundledAsset be associated with an existing assetbundle! You have either failed to bind an AssetBundle to this asset or the provided AssetBundle was collected! Asset path: " + path);
+            if (bundle.INOC()) 
+                throw new InvalidOperationException("BundledAsset be associated with an existing assetbundle! You have either failed to bind an AssetBundle to this asset or the provided AssetBundle was collected! Asset path: " + path);
+            if (!GetPaths().Contains(path.ToLower()))
+            {
+                foreach(string str in GetPaths())
+                    JeviLib.Log($"Bundle {bundle.name} - {str}");
+
+                throw new InvalidOperationException($"Assetbundle '{bundle.name}' does not contain any asset at path {path} - Logged all asset paths");
+            }
 #endif
 
             var abr = bundle.LoadAssetAsync(path);
             await abr.ToUniTask();
+#if DEBUG
+            if (abr.asset.TryCast<T>() == null)
+            {
+                throw new InvalidCastException($"Asset type {abr.asset.GetIl2CppType().FullName} does not match {typeof(T).FullName}");
+            }
+#endif
             asset = abr.asset.Cast<T>();
 
             asset.Persist(hide);
@@ -136,6 +155,19 @@ public class BundledAsset<T> where T : UnityEngine.Object
 
         return asset;
     }
+
+#if DEBUG
+    string[] GetPaths()
+    {
+        if (assetPaths.TryGetValue(bundle, out string[] paths)) return paths;
+        {
+            paths = bundle.GetAllAssetNames();
+            assetPaths.Add(bundle, paths);
+        }
+
+        return paths;
+    }
+#endif
 
     /// <summary>
     /// Converts a <see cref="BundledAsset{T}"/> to its loaded counterpart.

@@ -65,9 +65,7 @@ public static class AsyncExtensions
                 break;
             }
         }
-#endif
 
-#if DEBUG
         try
         {
             await awaited;
@@ -105,9 +103,7 @@ public static class AsyncExtensions
                 break;
             }
         }
-#endif
 
-#if DEBUG
         try
         {
             await awaited;

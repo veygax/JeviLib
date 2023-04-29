@@ -2,6 +2,7 @@
 using Il2CppSystem.Runtime.CompilerServices;
 using Il2CppSystem.Threading;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -17,6 +18,21 @@ namespace Jevil;
 /// </summary>
 public static class AsyncUtilities
 {
+    internal struct MainThreadExecutor
+    {
+        public Action execute;
+        public UniTaskCompletionSource completer;
+    }
+
+    internal static ConcurrentQueue<MainThreadExecutor> mainThreadCallbacks = new();
+
+    /// <summary>
+    /// Allows a <see cref="ForEachTimeSlice{T}(IEnumerable{T}, Action{T}, float, PlayerLoopTiming)"/> to modify
+    /// </summary>
+    /// <typeparam name="T">Any type</typeparam>
+    /// <param name="param">A parameter that, when modified by your callback, will modify the value stored in the array.</param>
+    public delegate void ForEachRefCallback<T>(ref T param);
+
     /// <summary>
     /// Iterates through the given collection, pausing for a frame when <paramref name="whatToDo"/> has executed more than <paramref name="msPerTick"/> milliseconds on the current frame.
     /// </summary>
@@ -32,6 +48,30 @@ public static class AsyncUtilities
         foreach (T item in collection)
         {
             whatToDo(item);
+
+            if (sw.Elapsed > ms)
+            {
+                await UniTask.Yield(timing);
+                sw.Restart();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Iterates through the given collection, pausing for a frame when <paramref name="whatToDo"/> has executed more than <paramref name="msPerTick"/> milliseconds on the current frame.
+    /// </summary>
+    /// <param name="array">An array of items.</param>
+    /// <param name="whatToDo">Any action that accepts an input of type <typeparamref name="T"/>, passed a reference to each element of the given array.</param>
+    /// <param name="msPerTick">The number of milliseconds per frame that <paramref name="whatToDo"/> should be allowed to execute every time its execution begins.</param>
+    /// <param name="timing">The <see cref="PlayerLoopTiming"/> to use when yielding execution. It is recommended to keep this to <see cref="PlayerLoopTiming.Update"/> as <see cref="PlayerLoopTiming.FixedUpdate"/> may cause spikes on frames where physics objects are updated.</param>
+    /// <returns>An awaitable <see cref="Task"/></returns>
+    public static async Task RefForEachTimeSlice<T>(T[] array, ForEachRefCallback<T> whatToDo, float msPerTick = 1, PlayerLoopTiming timing = PlayerLoopTiming.Update)
+    {
+        Stopwatch sw = Stopwatch.StartNew();
+        TimeSpan ms = TimeSpan.FromMilliseconds(msPerTick);
+        for (int i = 0; i < array.Length; i++)
+        {
+            whatToDo(ref array[i]);
 
             if (sw.Elapsed > ms)
             {
@@ -71,6 +111,36 @@ public static class AsyncUtilities
     }
 
     /// <summary>
+    /// <see cref="ForEachTimeSlice{T}(IEnumerable{T}, Action{T}, float, PlayerLoopTiming)"/>, except it gives you the index and awaits the result.
+    /// <para>This is kinda pointless but its a nicety.</para>
+    /// </summary>
+    /// <param name="start">The index to start at.</param>
+    /// <param name="approach">The index to approach, exclusive. Can be higher, lower, or equal to <paramref name="start"/>.</param>
+    /// <param name="whatToDo">What to do with the index.</param>
+    /// <param name="msPerFrame">The number of milliseconds per frame that <paramref name="whatToDo"/> should be allowed to execute.</param>
+    /// <param name="timing">The <see cref="PlayerLoopTiming"/> to use when yielding execution. It is recommended to keep this to <see cref="PlayerLoopTiming.Update"/> as <see cref="PlayerLoopTiming.FixedUpdate"/> may cause spikes on frames where physics objects are updated.</param>
+    /// <returns>An awaitable <see cref="Task"/>.</returns>
+    public static async Task ForTimeSlice(int start, int approach, Func<int, Task> whatToDo, float msPerFrame = 1, PlayerLoopTiming timing = PlayerLoopTiming.Update)
+    {
+        if (start == approach) return;
+
+        Stopwatch sw = Stopwatch.StartNew();
+        TimeSpan ms = TimeSpan.FromMilliseconds(msPerFrame);
+        int incOrDecBy = Math.Sign(approach - start);
+
+        for (int i = 0; i != approach; i += incOrDecBy)
+        {
+            await whatToDo(i);
+
+            if (sw.Elapsed > ms)
+            {
+                await UniTask.Yield(timing);
+                sw.Restart();
+            }
+        }
+    }
+
+    /// <summary>
     /// Allows you to await a call to <see cref="UnityWebRequest.BeginWebRequest"/> or other <see cref="AsyncOperation"/> not covered by <see cref="AsyncExtensions"/>.
     /// <para>You will still need to keep a copy of its return result, as this method does not allow you to retrieve asset after the fact.</para>
     /// </summary>
@@ -80,6 +150,22 @@ public static class AsyncUtilities
     public static UniTask ToUniTask(AsyncOperation ao, PlayerLoopTiming timing = PlayerLoopTiming.Update)
     {
         return UnityAsyncExtensions.ToUniTask(ao, null, timing, new CancellationToken());
+    }
+
+    /// <summary>
+    /// Executes an action on the main thread, possibly returning to the main thread as well.
+    /// </summary>
+    /// <param name="fun">The action to execute on the main thread.</param>
+    /// <returns>A UniTask that will be completed when JeviLib executes your callback on the main thread</returns>
+    public static UniTask RunOnMainThread(Action fun)
+    {
+        MainThreadExecutor mte = new()
+        {
+            completer = new(),
+            execute = fun
+        };
+        mainThreadCallbacks.Enqueue(mte);
+        return mte.completer.Task;
     }
 
     #region WrapNoThrow
@@ -174,7 +260,7 @@ public static class AsyncUtilities
     /// <typeparam name="TRes">The original return type of <paramref name="taskReturner"/></typeparam>
     /// <param name="taskReturner">Any parameterless method/lambda that returns an awaitable <see cref="Task{TResult}"/></param>
     /// <returns>A wrapper that will either contain an exception or the result of <c><see langword="await"/> <paramref name="taskReturner"/>();</c></returns>
-    public static async Task<OneOf<TRes, Exception>> WrapNoThrow<TRes>(Func<Task<TRes>> taskReturner)
+    public static async Task<OneOf<TRes, Exception>> WrapNoThrowWithResult<TRes>(Func<Task<TRes>> taskReturner)
     {
         try
         {
@@ -199,7 +285,7 @@ public static class AsyncUtilities
     /// <param name="taskReturner">Any parameterless method/lambda that returns an awaitable <see cref="Task{TResult}"/></param>
     /// <param name="param1">Parameter to pass into <paramref name="taskReturner"/>.</param>
     /// <returns>A wrapper that will either contain an exception or the result of <c><see langword="await"/> <paramref name="taskReturner"/>();</c></returns>
-    public static async Task<OneOf<TRes, Exception>> WrapNoThrow<TParam1, TRes>(Func<TParam1, Task<TRes>> taskReturner, TParam1 param1)
+    public static async Task<OneOf<TRes, Exception>> WrapNoThrowWithResult<TParam1, TRes>(Func<TParam1, Task<TRes>> taskReturner, TParam1 param1)
     {
         try
         {
@@ -225,7 +311,7 @@ public static class AsyncUtilities
     /// <param name="param1">Parameter to pass into <paramref name="taskReturner"/>.</param>
     /// <param name="param2">Parameter to pass into <paramref name="taskReturner"/>.</param>
     /// <returns>A wrapper that will either contain an exception or the result of <c><see langword="await"/> <paramref name="taskReturner"/>();</c></returns>
-    public static async Task<OneOf<TRes, Exception>> WrapNoThrow<TParam1, TParam2, TRes>(Func<TParam1, TParam2, Task<TRes>> taskReturner, TParam1 param1, TParam2 param2)
+    public static async Task<OneOf<TRes, Exception>> WrapNoThrowWithResult<TParam1, TParam2, TRes>(Func<TParam1, TParam2, Task<TRes>> taskReturner, TParam1 param1, TParam2 param2)
     {
         try
         {
@@ -252,7 +338,7 @@ public static class AsyncUtilities
     /// <param name="param2">Parameter to pass into <paramref name="taskReturner"/>.</param>
     /// <param name="param3">Parameter to pass into <paramref name="taskReturner"/>.</param>
     /// <returns>A wrapper that will either contain an exception or the result of <c><see langword="await"/> <paramref name="taskReturner"/>();</c></returns>
-    public static async Task<OneOf<TRes, Exception>> WrapNoThrow<TParam1, TParam2, TParam3, TRes>(Func<TParam1, TParam2, TParam3, Task<TRes>> taskReturner, TParam1 param1, TParam2 param2, TParam3 param3)
+    public static async Task<OneOf<TRes, Exception>> WrapNoThrowWithResult<TParam1, TParam2, TParam3, TRes>(Func<TParam1, TParam2, TParam3, Task<TRes>> taskReturner, TParam1 param1, TParam2 param2, TParam3 param3)
     {
         try
         {
