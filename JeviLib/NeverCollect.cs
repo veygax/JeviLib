@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -36,5 +37,7 @@ public class NeverCollect : MonoBehaviour
         neverCollect.Add(this);
         neverCollect.Add(neverCollect); // memory leak cuz fuck you
         instantiated = true;
+        JeviLib.unityMainThread = Thread.CurrentThread.ManagedThreadId;
+        Il2CppThreadScope.usesOfThisThreadInIl2Cpp = int.MaxValue / 2; // yeah i doubt someone's gonna use a thread a million times (half of maxval because overflow)
     }
 }
