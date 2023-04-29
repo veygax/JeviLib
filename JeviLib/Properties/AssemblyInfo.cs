@@ -26,4 +26,5 @@ using System.Runtime.InteropServices;
 // Values for MelonModGame can be found in the Game's app.info file or printed at the top of every log directly beneath the Unity version.
 [assembly: MelonGame("Stress Level Zero", "BONELAB")]
 
-[assembly: MelonOptionalDependencies("Il2Cpp")] // il2cpp support module is loaded after OnEarlyMelonInitialized
+// Cecil.Rocks doesnt get automatically loaded by Monodroid, gfys.... either way, i only use it in the unitask ceciler, so i just load it manually before entering that method
+[assembly: MelonOptionalDependencies("Mono.Cecil.Rocks")] 

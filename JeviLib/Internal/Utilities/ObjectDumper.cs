@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using UnhollowerBaseLib;
 using UnhollowerBaseLib.Runtime;
 
-namespace Jevil.Internal;
+namespace Jevil.Internal.Utilities;
 
-internal static partial class UtilitiesImpl
+internal static class ObjectDumper
 {
     // Modified version of https://github.com/lassevk/ObjectDumper/blob/main/src/ObjectDumper/Dumper.cs
     internal static void InternalDump(int indentationLevel, string name, object value, StringBuilder builder, ObjectIDGenerator idGenerator, int maxRecurse)

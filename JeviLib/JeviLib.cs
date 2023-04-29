@@ -13,6 +13,7 @@ using BoneLib.RandomShit;
 using Cysharp.Threading.Tasks;
 using Jevil.IMGUI;
 using Jevil.Patching;
+using Jevil.Prefs;
 using Jevil.Spawning;
 using Jevil.Tweening;
 using MelonLoader;
@@ -37,7 +38,9 @@ public class JeviLib : MelonMod
     internal readonly new Assembly Assembly = typeof(JeviLib).Assembly; // melonloader's favorite word is "Obsolete"
 
     internal static ConcurrentDictionary<string, ConcurrentBag<Assembly>> namespaceAssemblies = new();
-    internal static Action onNamespaceAssembliesCompleted;
+    internal static event Action onUpdateCallback;
+    internal static event Action onNamespaceAssembliesCompleted;
+    internal static int unityMainThread;
 
     static readonly ConcurrentQueue<string> toLog = new();
     static Stopwatch mainThreadInvokeTimer = new();
@@ -96,12 +99,18 @@ public class JeviLib : MelonMod
         Stopwatch submoduleInitSW = Stopwatch.StartNew();
 #endif
 
+        if (Utilities.IsPlatformQuest())
+            AndroidAsyncUnfucker.Init();
+
         HarmonyInstance.PatchAll();
 
         Barcodes.Init();
 
+        PlayerPrefsExceptionUses.Init();
+
 #if DEBUG
         submoduleInitSW.Stop();
+        LoggerInstance.Msg(ConsoleColor.Blue, $"JeviLib submodules initialized in {submoduleInitSW.ElapsedMilliseconds}ms");
 #endif
 
         Task.Run(this.GetNamespaces);
@@ -127,108 +136,22 @@ public class JeviLib : MelonMod
 
         try
         {
-            StartForkIfNeeded();
+            AssemblyPatcher.Init();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            Error("Exception while starting fork process: " + ex);
-            if (Utilities.IsPlatformQuest())
-            {
-                Warn("Since you're on Quest, JeviLib will attempt a live-update of mod files");
-
-                // need to MANUALLY FUCKING LOAD cecil.rocks because MONO ANDROID DOESNT LOAD IT, THE DUMB CUNT
-                string _cecilLocation = typeof(Mono.Cecil.AssemblyDefinition).Assembly.Location;
-                string _cecilRocksLocation = Path.Combine(Path.GetDirectoryName(_cecilLocation), "Mono.Cecil.Rocks.dll");
-                Log("Loading Cecil.Rocks from " + _cecilRocksLocation);
-                byte[] _cecilRocksAsm = File.ReadAllBytes(_cecilRocksLocation);
-                Assembly.Load(_cecilRocksAsm);
-
-                string userDataFolder = MelonUtils.UserDataDirectory;
-                string jsmPath = Path.Combine(userDataFolder, "JevilSM");
-                string logPath = Path.Combine(jsmPath, "FixerLog.log");
-                string newSmPath = Path.Combine(jsmPath, "Il2Cpp.dll");
-                string unitaskPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UniTask.dll");
-                string il2mscorlibPath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "Il2Cppmscorlib.dll");
-                string unhollowerBasePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnhollowerBaseLib.dll");
-                string unityCoreModulePath = Path.Combine(userDataFolder, "..", "melonloader", "etc", "managed", "UnityEngine.CoreModule.dll");
-                if (!Directory.Exists(jsmPath))
-                {
-                    Log("Created JevilSM directory: " + jsmPath);
-                    Directory.CreateDirectory(jsmPath);
-                }
-
-                Log("Support module updating can now begin.");
-                Log("JeviLib custom support module does not work properly on Android. A harmony based solution has been implemented instead");
-
-                Log("UnityEngine CoreModule modification can now begin");
-                UnityCoreModuleCeciler.Log = (str) => Log("UnityCoreModuleCeciler: " + str);
-                UnityCoreModuleCeciler.Error = (str) => Error("UnityCoreModuleCeciler: " + str);
-                UnityCoreModuleCeciler.Execute(unityCoreModulePath, il2mscorlibPath, userDataFolder);
-                Log("UnityEngine CoreModule modification finished successfully");
-
-                Log("UniTask modification can now begin.");
-                UniTaskCeciler.Log = (str) => Log("UniTaskCeciler: " + str);
-                UniTaskCeciler.Error = (str) => Error("UniTaskCeciler: " + str);
-                UniTaskCeciler.Execute(unitaskPath, il2mscorlibPath, unhollowerBasePath, MelonUtils.UserDataDirectory);
-                Log("UniTask modification has finished.");
-
-
-                Log("Critical mod files have been modified. It is recommended you restart your game.");
-            }
+            Error("Fixes for UniTasks, Coroutines, or IL2CPP ToString methods may be unavailable. See below for more information.");
+            Error("Exception while initializing fixes: " + ex);
         }
 
-        // for once, the quest users get a better user experience, although it allocates more memory and takes a bit longer to execute
-        if (Utilities.IsPlatformQuest()) QuestEnumeratorRewrapper.Init();
-        
         // Initialize NeverCollect/NeverCancel for generic Tweens
         GameObject go = new(nameof(NeverCollect));
         NeverCollect nc = go.AddComponent<NeverCollect>();
-        go.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
-        nc.hideFlags = HideFlags.HideAndDontSave | HideFlags.DontUnloadUnusedAsset;
-        GameObject.DontDestroyOnLoad(go);
-        GameObject.DontDestroyOnLoad(nc);
+        go.Persist();
+        nc.Persist();
         Instances.NeverCancel = go;
 
         LoggerInstance.Msg(ConsoleColor.Blue, $"Completed initialization of {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug" : "")} in {sw.ElapsedMilliseconds}ms");
-    }
-
-    private static void StartForkIfNeeded()
-    {
-        bool unitasksNeedFixing = Utilities.UniTasksNeedPatch();
-        bool enumeratorsNeedFixing = Utilities.CoroutinesNeedPatch();
-
-        if (unitasksNeedFixing) 
-            Warn("UniTasks need fixing!");
-        if (enumeratorsNeedFixing)
-            Warn("MonoEnumeratorWrapper needs fixing!");
-
-        if (Utilities.IsPlatformQuest())
-            throw new PlatformNotSupportedException("JevilFixer does not work on Quest. Its features have been recreated for Android.");
-
-        if (unitasksNeedFixing || enumeratorsNeedFixing)
-            Log("Starting fork process to watch for fixes!");
-        else return;
-
-        string jevilSmFolder = Path.Combine(MelonUtils.UserDataDirectory, "JevilSM");
-        if (!Directory.Exists(jevilSmFolder)) Directory.CreateDirectory(jevilSmFolder);
-
-        string file = Path.Combine(jevilSmFolder, "JevilFixer.exe");
-        instance.MelonAssembly.Assembly.UseEmbeddedResource("Jevil.Resources.ForkProcess.exe", bytes => File.WriteAllBytes(file, bytes));
-        Log($"Wrote fork process to " + file);
-
-        Process fork = new Process()
-        {
-            StartInfo = new ProcessStartInfo()
-            {
-                Arguments = MelonUtils.UserDataDirectory,
-                CreateNoWindow = !JevilBuildInfo.DEBUG,
-                UseShellExecute = true,
-                FileName = file,
-            },
-        };
-        fork.Exited += (s, e) => { Log("Fork process exited. This is likely to properly fork itself.");  };
-        fork.Start();
-        Log($"Fork process started with PID {fork.Id}");
     }
 
     /// <summary>
@@ -236,7 +159,26 @@ public class JeviLib : MelonMod
     /// </summary>
     public override void OnUpdate()
     {
+        onUpdateCallback.InvokeActionSafe();
         Tweener.UpdateAll();
+
+        while (AsyncUtilities.mainThreadCallbacks.TryDequeue(out var mte))
+        {
+            try
+            {
+                mte.execute();
+            }
+            catch (Exception ex)
+            {
+                Error("Exception while executing a main-thread callback");
+                Error(ex);
+                if (mte.completer.UnsafeGetStatus() != UniTaskStatus.Pending) continue;
+
+                mte.completer.exception = new(Il2CppSystem.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(new Il2CppSystem.Exception(ex.ToString())));
+            }
+
+            mte.completer.TrySetResult();
+        }
 
         mainThreadInvokeTimer.Restart();
     }
@@ -543,6 +485,7 @@ public class JeviLib : MelonMod
             {
                 Assembly currentAsm = section[i];
                 currAsmTitle = currentAsm.FullName;
+                if (currAsmTitle.Contains("JeviLib")) continue; // causes quest enumerator wrapper to fail
                 if (currentAsm.IsDynamic) continue; // avoid exceptions from Redirect and Hooking
                 
                 Type[] types = currentAsm.GetTypes();
