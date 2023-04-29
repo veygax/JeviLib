@@ -46,8 +46,9 @@
     <Reference Include="BoneLib">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\Mods\BoneLib.dll</HintPath>
     </Reference>
-    <Reference Include="Il2CppPublicized">
-      <HintPath>..\References\Il2CppPublicized.dll</HintPath>
+    <Reference Include="Il2CppSystem, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\Il2CppSystem.dll</HintPath>
     </Reference>
     <Reference Include="MelonLoader">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\MelonLoader.dll</HintPath>
@@ -72,6 +73,7 @@
     <Reference Include="SLZ.Serialize">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Managed\SLZ.Serialize.dll</HintPath>
     </Reference>
+    <Reference Include="System.Net.Http" />
     <Reference Include="Tomlet">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\BONELAB\MelonLoader\Tomlet.dll</HintPath>
     </Reference>
@@ -141,13 +143,22 @@
     <Compile Include="BundledAsset.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Il2CppThreadScope.cs" />
+    <Compile Include="Internal\Stats\StatsCommon.cs" />
     <Compile Include="Internal\Utilities\ObjectDumper.cs" />
     <Compile Include="JevilBuildInfo.cs" />
     <Compile Include="JeviLib.cs" />
+    <Compile Include="ModStats\StatsAdmin.cs" />
+    <Compile Include="ModStats\StatsCategoryAdmin.cs" />
+    <Compile Include="ModStats\StatsEntry.cs" />
+    <Compile Include="Patching\AssemblyPatcher.cs" />
+    <Compile Include="Patching\PlayerPrefsExceptionUses.cs" />
+    <Compile Include="ProfilingScope.cs" />
     <Compile Include="OneOf.cs" />
     <Compile Include="Patching\FixSocketAsyncEventArgs.cs" />
     <Compile Include="Patching\QuestEnumeratorRewrapper.cs" />
     <Compile Include="Patching\UniTasks.cs" />
+    <Compile Include="Patching\AndroidAsyncUnfucker.cs" />
     <Compile Include="Prefs\PreferencesRegisterChildren.cs" />
     <Compile Include="Prefs\PreferencesFile.cs" />
     <Compile Include="Spawning\Barcodes.cs" />
@@ -212,7 +223,6 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\ForkProcess.exe" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files (x86)\Steam\steamapps\common\BONELAB\Mods"

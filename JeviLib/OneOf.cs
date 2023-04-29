@@ -28,7 +28,7 @@ public readonly struct OneOf<TRes, TExc> where TExc : Exception
     public TRes Result => HasResult 
                             ? result
 #if DEBUG
-                            : throw new InvalidOperationException($"OneOf<{typeof(TRes).FullName}, {typeof(TExc).FullName}> (wrapping method call to {originalMethod.FullDescription()}) errored, so there is no result to get.", exception);
+                            : throw new InvalidOperationException($"OneOf<{typeof(TRes).FullName}, {typeof(TExc).FullName}> (wrapping method call to {originalMethod?.FullDescription() ?? "<User Code>"}) errored, so there is no result to get.", exception);
 #else
                             : throw new InvalidOperationException($"OneOf<{typeof(TRes).FullName}, {typeof(TExc).FullName}> errored, so there is no result to get.", exception);
 #endif
@@ -44,7 +44,11 @@ public readonly struct OneOf<TRes, TExc> where TExc : Exception
     public bool HasException => exception != null;
 
 #if DEBUG
-    internal OneOf(TRes result)
+    /// <summary>
+    /// Creates a new wrapper for your value, similar to <see cref="Task.FromResult{TResult}(TResult)"/>
+    /// </summary>
+    /// <param name="result"></param>
+    public OneOf(TRes result)
     {
         this.result = result;
         this.exception = null;
@@ -78,4 +82,26 @@ public readonly struct OneOf<TRes, TExc> where TExc : Exception
     /// </summary>
     /// <param name="o"></param>
     public static implicit operator TRes(OneOf<TRes, TExc> o) => o.Result;
+
+    /// <summary>
+    /// Converts a exception into itself wrapped into a <see cref="OneOf{TRes, TExc}"/> struct.
+    /// </summary>
+    /// <param name="value">The exception to be wrapped.</param>
+    public static implicit operator OneOf<TRes, TExc> (TRes value)
+    {
+        return new OneOf<TRes, TExc>(value);
+    }
+
+    /// <summary>
+    /// Converts a exception into itself wrapped into a <see cref="OneOf{TRes, TExc}"/> struct.
+    /// </summary>
+    /// <param name="exception">The exception to be wrapped.</param>
+    public static implicit operator OneOf<TRes, TExc>(Exception exception)
+    {
+#if DEBUG
+        return new OneOf<TRes, TExc>((TExc)exception, null);
+#else
+        return new OneOf<TRes, TExc>(exception);
+#endif
+    }
 }
