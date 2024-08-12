@@ -1,10 +1,10 @@
 ﻿using Jevil;
-using BoneLib.Nullables;
+using BoneLib;
 using System.Collections.Generic;
 using UnityEngine;
-using SLZ.Marrow.Data;
-using SLZ.Bonelab;
-using SLZ.Marrow.Pool;
+using Il2CppSLZ.Marrow.Data;
+using Il2CppSLZ.Bonelab;
+using Il2CppSLZ.Marrow.Pool;
 using System.Threading.Tasks;
 
 namespace Jevil.Spawning;
@@ -45,7 +45,7 @@ public static class Ammo
         if (!spawnableWeights.TryGetValue(ammoWgt, out var spawnable) || spawnable.WasCollected || spawnable == null) Init(); // yep
 
 
-        AssetPoolee spawnedAmmo = await NullableMethodExtensions.PoolManager_SpawnAsync(spawnableWeights[ammoWgt], pos, rot);
+        Poolee spawnedAmmo = await NullableMethodExtensions.PoolManager_SpawnAsync(spawnableWeights[ammoWgt], pos, rot);
         AmmoPickup pickup = spawnedAmmo.GetComponentInChildren<AmmoPickup>();
         pickup.ammoCount = ammoCount;
         return spawnedAmmo.gameObject;

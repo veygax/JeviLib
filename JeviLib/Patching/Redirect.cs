@@ -177,7 +177,7 @@ public static class Redirect
     private static void Log(object obj) => Log(obj?.ToString() ?? "<null>");
     private static void Log(string str)
     {
-        if (!DynTools.disableLogging) JeviLib.Log("REDIRECTOR -> " + str, ConsoleColor.DarkGray);
+        if (!DynTools.disableLogging) JeviLib.Log("REDIRECTOR -> " + str);
     }
     #endregion
 

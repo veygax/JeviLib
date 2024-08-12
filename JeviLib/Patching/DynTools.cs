@@ -86,7 +86,7 @@ internal static class DynTools
     private static void Log(object obj) => Log(obj?.ToString() ?? "<null>");
     private static void Log(string str)
     {
-        if (!disableLogging) JeviLib.Log("DYNAMICTOOLS -> " + str, ConsoleColor.DarkGray);
+        if (!disableLogging) JeviLib.Log("DYNAMICTOOLS -> " + str);
     }
     #endregion
 }

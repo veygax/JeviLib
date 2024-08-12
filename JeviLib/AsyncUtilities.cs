@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using Il2CppCysharp.Threading.Tasks;
 using Il2CppSystem.Runtime.CompilerServices;
 using Il2CppSystem.Threading;
 using System;
@@ -149,7 +149,7 @@ public static class AsyncUtilities
     /// <returns>An awaitable <see cref="UniTask"/></returns>
     public static UniTask ToUniTask(AsyncOperation ao, PlayerLoopTiming timing = PlayerLoopTiming.Update)
     {
-        return UnityAsyncExtensions.ToUniTask(ao, null, timing, new CancellationToken());
+        return UnityAsyncExtensions.ToUniTask(ao, null, timing, new Il2CppSystem.Threading.CancellationToken());
     }
 
     /// <summary>

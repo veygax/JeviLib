@@ -1,5 +1,4 @@
 ﻿using BoneLib.BoneMenu;
-using BoneLib.BoneMenu.Elements;
 using HarmonyLib;
 using MelonLoader;
 using System;
@@ -18,7 +17,7 @@ internal static class PrefsInternal
     // like a dictinoary, but doesnt stop GC of its PrefEntries values
     static readonly ConditionalWeakTable<string, PrefEntries> nameToEntries = new();
     static readonly Dictionary<Type, MethodInfo> genericCreateEnumElements = new();
-    static readonly MethodInfo baseCreateEnumElement = typeof(MenuCategory).GetMethodEasy(nameof(MenuCategory.CreateEnumElement));
+    static readonly MethodInfo baseCreateEnumElement = typeof(Page).GetMethodEasy(nameof(Page.CreateEnum));
     static readonly object[] NoParameters = Array.Empty<object>();
     //public static void RegisterPreferences<T>(string categoryName, bool prefSubcategory, Color categoryColor, string filePath) => RegisterPreferences(typeof(T), categoryName, prefSubcategory, categoryColor, filePath);
 
@@ -26,8 +25,8 @@ internal static class PrefsInternal
     {
         PrefEntries ret = nameToEntries.GetValue(categoryName, (key) => new PrefEntries(MelonPreferences.CreateCategory(key), MenuManager.CreateCategory(key, categoryColor)));
         MelonPreferences_Category mpCat = ret.MelonPrefsCategory; // interally first checks for GetCategory
-        MenuCategory methodCategory = ret.BoneMenuCategory;
-        MenuCategory fieldCategory = prefSubcategory ? ret.BoneMenuCategory.CreateCategory(Preferences.prefSubcategoryName, categoryColor) : ret.BoneMenuCategory;
+        Page methodCategory = ret.BoneMenuCategory;
+        Page fieldCategory = prefSubcategory ? ret.BoneMenuCategory.CreateCategory(Preferences.prefSubcategoryName, categoryColor) : ret.BoneMenuCategory;
 
         if (!filePath.EndsWith("MelonPreferences.cfg")) // only set file path if its not MP.cfg
             mpCat.SetFilePath(filePath, true, false); // actually get the values
@@ -37,7 +36,7 @@ internal static class PrefsInternal
         return ret;
     }
 
-    public static void RegisterPreferences(Type type, MelonPreferences_Category mpCat, MenuCategory fieldCategory, MenuCategory methodCategory)
+    public static void RegisterPreferences(Type type, MelonPreferences_Category mpCat, Page fieldCategory, Page methodCategory)
     {
         FieldInfo[] staticFields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
         MethodInfo[] staticMethods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
@@ -113,7 +112,7 @@ internal static class PrefsInternal
         };
     
 
-    private static void RegisterPrefAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, MenuCategory bmCat)
+    private static void RegisterPrefAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, Page bmCat)
     {
         foreach (FieldInfo field in fields)
         {
@@ -138,7 +137,7 @@ internal static class PrefsInternal
             {
                 var entry = SetEntry(mpCat, field, out bool toSet, ep.desc);
                 field.SetValue(null, toSet);
-                bmCat.CreateBoolElement(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                bmCat.CreateBool(readableName, ep.color, toSet, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (fieldType == typeof(Color))
             {
@@ -200,7 +199,7 @@ internal static class PrefsInternal
         }
     }
 
-    private static void RegisterRangeAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, MenuCategory bmCat)
+    private static void RegisterRangeAttr(Type type, FieldInfo[] fields, MelonPreferences_Category mpCat, Page bmCat)
     {
         foreach (var field in fields)
         {
@@ -216,13 +215,13 @@ internal static class PrefsInternal
             {
                 var entry = SetEntry(mpCat, field, out int toSet, $"{rp.low} to {rp.high}");
                 field.SetValue(null, toSet);
-                bmCat.CreateIntElement(readableName, Color.white, toSet, (int)rp.inc, (int)rp.low, (int)rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                bmCat.CreateInt(readableName, Color.white, toSet, (int)rp.inc, (int)rp.low, (int)rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
             else if (field.FieldType == typeof(float))
             {
                 var entry = SetEntry(mpCat, field, out float toSet, $"{rp.low} to {rp.high}");
                 field.SetValue(null, toSet);
-                bmCat.CreateFloatElement(readableName, Color.white, toSet, rp.inc, rp.low, rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
+                bmCat.CreateFloat(readableName, Color.white, toSet, rp.inc, rp.low, rp.high, val => { field.SetValue(null, val); entry.Value = val; mpCat.SaveToFile(false); });
             }
 #if DEBUG
             else
@@ -235,7 +234,7 @@ internal static class PrefsInternal
         }
     }
 
-    private static void RegisterMethods(Type type, MethodInfo[] methods, MenuCategory bmCat)
+    private static void RegisterMethods(Type type, MethodInfo[] methods, Page bmCat)
     {
         foreach (MethodInfo method in methods)
         {
@@ -262,30 +261,30 @@ internal static class PrefsInternal
                 deleg8 = () => { method.Invoke(null, NoParameters); };
             }
 
-            MenuCategory targetCategory = CreateSubmenu(bmCat, pref);
+            Page targetCategory = CreateSubmenu(bmCat, pref);
 
-            targetCategory.CreateFunctionElement(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
+            targetCategory.CreateFunction(Utilities.GenerateFriendlyMemberName(method.Name), pref.color, deleg8);
 #if DEBUG
             JeviLib.Log($"Successfully created FunctionElement for {type.FullName}.{method.Name}");
 #endif
         }
     }
 
-    private static MenuCategory CreateSubmenu(MenuCategory bmRoot, Pref pref)
+    private static Page CreateSubmenu(Page bmRoot, Pref pref)
     {
         if (string.IsNullOrWhiteSpace(pref.desc)) return bmRoot;
         string[] pathParts = pref.desc.Split('/');
 
-        MenuCategory ret = bmRoot;
+        Page ret = bmRoot;
         for (int i = 0; i < pathParts.Length; i++)
         {
-            MenuCategory target = ret.Elements.OfType<MenuCategory>().FirstOrDefault(mc => mc.Name == pathParts[i]);
+            Page target = ret.Elements.OfType<Page>().FirstOrDefault(mc => mc.Name == pathParts[i]);
             if (target == null)
             {
 #if DEBUG
                 JeviLib.Log($"Creating submenu '{pathParts[i]}' on Menu '{bmRoot.Name}' for part {i + 1} of submenu path {pref.desc}");
 #endif
-                target = bmRoot.CreateCategory(pathParts[i], pref.color);
+                target = bmRoot.CreatePage(pathParts[i], pref.color);
             }
 
             ret = target;

@@ -206,7 +206,7 @@ public static class Disable
     private static void Log(object obj) => Log(obj?.ToString() ?? "<null>");
     private static void Log(string str)
     {
-        if (!DynTools.disableLogging) JeviLib.Log("DISABLE -> " + str, ConsoleColor.DarkGray);
+        if (!DynTools.disableLogging) JeviLib.Log("DISABLE -> " + str);
     }
     #endregion
 }

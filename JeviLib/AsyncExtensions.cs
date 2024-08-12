@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using Il2CppCysharp.Threading.Tasks;
 using HarmonyLib;
 using Il2CppSystem.Threading;
 using System;
@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime;
 using UnityEngine;
 using UnityEngine.Networking;
 

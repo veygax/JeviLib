@@ -1,8 +1,11 @@
-﻿using SLZ.Data;
-using SLZ.Marrow.Pool;
-using SLZ.Rig;
-using SLZ.Utilities;
-using SLZ.VRMK;
+﻿using Il2CppSLZ.Bonelab;
+using Il2CppSLZ.Data;
+using Il2CppSLZ.Marrow;
+using Il2CppSLZ.Marrow.Audio;
+using Il2CppSLZ.Marrow.Pool;
+using Il2CppSLZ.Rig;
+using Il2CppSLZ.Utilities;
+using Il2CppSLZ.VRMK;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -43,12 +46,12 @@ public static class Instances
 
     /// <summary>
     /// A cached reference to the spectator camera, regardless of if it is the active camera outputting to flatscreen (Use <c><see cref="Camera.main"/></c> for that)
-    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelInitialized"/> is called.</para>
+    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelLoaded"/> is called.</para>
     /// </summary>
     public static Camera SpectatorCam { get; internal set; }
     /// <summary>
     /// A cached reference to the camera currently rendering to the headset.
-    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelInitialized"/> is called.</para>
+    /// <para>May be null during loading screnes or before <see cref="BoneLib.Hooking.OnLevelLoaded"/> is called.</para>
     /// </summary>
     public static Camera InHeadsetCam { get; internal set; }
     /// <summary>
@@ -59,7 +62,7 @@ public static class Instances
     /// <summary>
     /// The currently operating Audio_Manager.
     /// </summary>
-    public static Audio_Manager Audio_Manager { get; internal set; }
+    public static Audio3dManager Audio_Manager { get; internal set; }
     /// <summary>
     /// The AudioMixerGroup corresponding to the Music mixer in the game's audio mixer settings.
     /// </summary>
@@ -92,7 +95,7 @@ public static class Instances
     /// <summary>
     /// A read-only collection of all pools.
     /// </summary>
-    public static IReadOnlyCollection<AssetPool> AllPools
+    public static IReadOnlyCollection<Pool> AllPools
     {
         get
         {
@@ -107,6 +110,6 @@ public static class Instances
     }
 
     internal static int allPoolsVersion = -1;
-    internal static IReadOnlyList<AssetPool> allPools;
+    internal static IReadOnlyList<Pool> allPools;
     internal static List<IDictionary> instanceCachesToClear = new();
 }

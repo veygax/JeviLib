@@ -1,11 +1,10 @@
 ﻿using BoneLib;
-using BoneLib.Nullables;
-using Cysharp.Threading.Tasks;
+using Il2CppCysharp.Threading.Tasks;
 using Jevil.Spawning;
-using SLZ.Marrow.Data;
-using SLZ.Marrow.Pool;
-using SLZ.Marrow.Warehouse;
-using SLZ.Rig;
+using Il2CppSLZ.Marrow.Data;
+using Il2CppSLZ.Marrow.Pool;
+using Il2CppSLZ.Marrow.Warehouse;
+using Il2CppSLZ.Rig;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,9 +13,13 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using UnhollowerRuntimeLib;
 using UnityEngine;
 using UnityEngine.Assertions;
+using Il2CppInterop.Runtime;
+using Il2CppSLZ.Marrow.SceneStreaming;
+using System.Xml.Serialization;
+using Il2CppSLZ.Marrow;
+using Il2CppSystem;
 
 namespace Jevil;
 
@@ -71,7 +74,7 @@ public static class Extensions
     /// <typeparam name="T"></typeparam>
     /// <param name="sequence"></param>
     /// <param name="fun">the lambda of what to do</param>
-    public static void ForEach<T>(this IEnumerable<T> sequence, Action<T> fun)
+    public static void ForEach<T>(this IEnumerable<T> sequence, System.Action<T> fun)
     {
         foreach (T item in sequence) fun(item);
     }
@@ -83,7 +86,7 @@ public static class Extensions
     /// <typeparam name="T"></typeparam>
     /// <param name="sequence"></param>
     /// <param name="fun">the lambda of what to do</param>
-    public static void ForEachSafe<T>(this IEnumerable<T> sequence, Action<T> fun)
+    public static void ForEachSafe<T>(this IEnumerable<T> sequence, System.Action<T> fun)
     {
         foreach (T item in sequence) 
         {
@@ -94,7 +97,7 @@ public static class Extensions
 #if !DEBUG
             catch { }
 #else
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 JeviLib.Warn("Exception whilst safe foreaching - still continuing though. The exception is below.");
                 JeviLib.Warn(ex);
@@ -140,7 +143,7 @@ public static class Extensions
     /// <param name="resourcePath">The resource path. Debug builds check for this path in the assembly and throw a more descriptive Exception. Release builds will throw <see cref="NullReferenceException"/></param>
     /// <param name="whatToDoWithResource">The method or lambda to run, taking in the parameter of the raw bytes of the resource</param>
     /// <exception cref="System.IO.FileNotFoundException">The resource path does not point to a valid resource</exception>
-    public static void UseEmbeddedResource(this System.Reflection.Assembly assembly, string resourcePath, Action<byte[]> whatToDoWithResource)
+    public static void UseEmbeddedResource(this System.Reflection.Assembly assembly, string resourcePath, System.Action<byte[]> whatToDoWithResource)
     {
 #if DEBUG
         string[] paths = assembly.GetManifestResourceNames();
@@ -269,7 +272,7 @@ public static class Extensions
 
         for (int i = 0; i < arrarr.Length; i++)
         {
-            Buffer.BlockCopy(arrarr[i], 0, result, totalToNow, arrarr[i].Length);
+            System.Buffer.BlockCopy(arrarr[i], 0, result, totalToNow, arrarr[i].Length);
             totalToNow += arrarr[i].Length;
         }
 
@@ -297,7 +300,7 @@ public static class Extensions
     /// <returns>The list of lists, with each inner list having a max Count of <paramref name="maxPerList"/></returns>
     public static IEnumerable<IEnumerable<T>> SplitList<T>(this IEnumerable<T> source, int maxPerList)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
+        if (source == null) throw new System.ArgumentNullException(nameof(source));
         IList<T> enumerable = source as IList<T> ?? source.ToList();
         if (!enumerable.Any())
         {
@@ -362,7 +365,7 @@ public static class Extensions
         for (int i = 0; i < childCount; i++)
         {
 #if DEBUG
-            if (t.childCount != childCount) throw new InvalidOperationException("The child count of a transform should not be modified while it is being enumerated!");
+            if (t.childCount != childCount) throw new System.InvalidOperationException("The child count of a transform should not be modified while it is being enumerated!");
 #endif
             yield return t.GetChild(i);
         }
@@ -381,7 +384,7 @@ public static class Extensions
     /// <exception cref="IndexOutOfRangeException"><see cref="Enumerable.Count{TSource}(IEnumerable{TSource})"/> is not the same for both.</exception>
     public static IEnumerable<(T1, T2)> Zip<T1,T2>(this IEnumerable<T1> sequence, IEnumerable<T2> otherSeq, bool throwOnUnequalCounts = true)
     {
-        if (throwOnUnequalCounts && sequence.Count() != otherSeq.Count()) throw new IndexOutOfRangeException("Zipped enumerables must have the same length otherwise the operation will go out of bounds!");
+        if (throwOnUnequalCounts && sequence.Count() != otherSeq.Count()) throw new System.IndexOutOfRangeException("Zipped enumerables must have the same length otherwise the operation will go out of bounds!");
         return sequence.Zip(otherSeq, (x, y) => (x, y));
     }
 
@@ -396,7 +399,7 @@ public static class Extensions
     /// <returns>A tuple array with the tuple's Item1 coming from <paramref name="arr"/> and Item2 coming from <paramref name="otherArr"/>.</returns>
     public static (T1, T2)[] Zip<T1, T2>(this T1[] arr, T2[] otherArr)
     {
-        if (arr.Length != otherArr.Length) throw new IndexOutOfRangeException("Zipped arrays must have the same length otherwise the operation will go out of bounds!");
+        if (arr.Length != otherArr.Length) throw new System.IndexOutOfRangeException("Zipped arrays must have the same length otherwise the operation will go out of bounds!");
         (T1, T2)[] res = new (T1, T2)[arr.Length];
         
         for (int i = 0; i < arr.Length; i++)
@@ -441,21 +444,21 @@ public static class Extensions
     /// <param name="sequence">The sequence to be .Min'd and .First'd</param>
     /// <param name="selector">The Func to pass into <see cref="Enumerable.Min{TSource}(IEnumerable{TSource}, Func{TSource, int})"/> and to use to compare against the result in <see cref="Enumerable.First{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>.</param>
     /// <returns>The first element in the sequence that matches the result of <see cref="Enumerable.Min{TSource}(IEnumerable{TSource}, Func{TSource, int})"/></returns>
-    public static T FirstMin<T>(this IEnumerable<T> sequence, Func<T, int> selector)
+    public static T FirstMin<T>(this IEnumerable<T> sequence, System.Func<T, int> selector)
     {
         int min = sequence.Min(selector);
         return sequence.First(t => selector(t) == min);
     }
 
     /// <summary>
-    /// If <paramref name="paramTypes"/> is null, attempt to resolve conflicts between methods by filtering the results of <see cref="Type.GetMethods(BindingFlags)"/>, returning a method with the smallest number of parameters.
-    /// <para>Otherwise, <see cref="Type.GetMethod(string, BindingFlags, Binder, CallingConventions, Type[], ParameterModifier[])"/> with the BindingFlags parameter set to <see cref="Const.AllBindingFlags"/>.</para>
+    /// If <paramref name="paramTypes"/> is null, attempt to resolve conflicts between methods by filtering the results of <see cref="System.Type.GetMethods(BindingFlags)"/>, returning a method with the smallest number of parameters.
+    /// <para>Otherwise, <see cref="System.Type.GetMethod(string, BindingFlags, Binder, CallingConventions, System.Type[], ParameterModifier[])"/> with the BindingFlags parameter set to <see cref="Const.AllBindingFlags"/>.</para>
     /// </summary>
     /// <param name="type">The type with a potentially overridden method named <paramref name="methodName"/>.</param>
     /// <param name="methodName">The name of the method. Can be overridden.</param>
     /// <param name="paramTypes">In case you want more specificity, you can specify an array of types correspoding to the parameter types.</param>
     /// <returns>An instance of <see cref="MethodInfo"/> if there's at least one method matching the criteria, or <see langword="null"/>.</returns>
-    public static MethodInfo GetMethodEasy(this Type type, string methodName, Type[] paramTypes = null)
+    public static MethodInfo GetMethodEasy(this System.Type type, string methodName, System.Type[] paramTypes = null)
     {
         if (paramTypes == null)
         {
@@ -475,7 +478,7 @@ public static class Extensions
     /// <param name="type">The type with the method(s)</param>
     /// <param name="methodName">The name of the method overridden</param>
     /// <returns>All methods on the given type that have the given name.</returns>
-    public static MethodInfo[] GetMethods(this Type type, string methodName)
+    public static MethodInfo[] GetMethods(this System.Type type, string methodName)
     {
         return (from MethodInfo method in type.GetMethods(Const.AllBindingFlags)
                 where method.Name == methodName
@@ -493,13 +496,13 @@ public static class Extensions
     public static void Add<T1, T2>(this List<(T1, T2)> list, T1 item1, T2 item2) => list.Add((item1, item2));
 
     /// <summary>
-    /// Uses <see cref="MemberInfo.DeclaringType"/> and <see cref="Type.GetMethod(string, BindingFlags)"/> with <see cref="Const.AllBindingFlags"/> to get an instance of <see cref="MethodInfo"/>.
+    /// Uses <see cref="MemberInfo.DeclaringType"/> and <see cref="System.Type.GetMethod(string, BindingFlags)"/> with <see cref="Const.AllBindingFlags"/> to get an instance of <see cref="MethodInfo"/>.
     /// </summary>
     /// <param name="mb">Any MethodBase declared by a Type.</param>
     /// <returns>An instnace of <see cref="MethodInfo"/>, or <see langword="null"/> for whatever reason. Should always return a methodinfo tho.</returns>
     public static MethodInfo ToInfo(this MethodBase mb)
     {
-        Type type = mb.DeclaringType;
+        System.Type type = mb.DeclaringType;
         return type.GetMethod(mb.Name, Const.AllBindingFlags);
     } 
 
@@ -510,11 +513,11 @@ public static class Extensions
     /// <returns></returns>
     public static bool INOC(this UnityEngine.Object obj)
     {
-        IntPtr ptr = IntPtr.Zero;
+        System.IntPtr ptr = System.IntPtr.Zero;
         try { ptr = obj.Pointer; }
         catch { }
         // This shit better fucking work this time
-        return obj is null || ptr == IntPtr.Zero || obj.WasCollected || obj == null;
+        return obj is null || ptr == System.IntPtr.Zero || obj.WasCollected || obj == null;
     }
 
     /// <summary>
@@ -557,8 +560,8 @@ public static class Extensions
         //todo: check if Hand.rb is null
         try
         {
-            Player.leftHand.rb.AddForce(velocity, ForceMode.VelocityChange);
-            Player.rightHand.rb.AddForce(velocity, ForceMode.VelocityChange);
+            Player.LeftHand.rb.AddForce(velocity, ForceMode.VelocityChange);
+            Player.RightHand.rb.AddForce(velocity, ForceMode.VelocityChange);
         }
         catch { }
     }
@@ -572,7 +575,7 @@ public static class Extensions
     public static void Spawn(this SpawnableCrate crate, Vector3 pos, Quaternion rot)
     {
         Spawnable spawn = Barcodes.ToSpawnable(crate.Barcode.ID);
-        AssetSpawner.Spawn(spawn, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+        AssetSpawner.Spawn(spawn, pos, rot, new Il2CppSystem.Nullable<Vector3>(), null, false, null, null);
     }
 
     /// <summary>
@@ -581,10 +584,10 @@ public static class Extensions
     /// <param name="crate">oo ee oo aa aa ting tang walla walla bing bang</param>
     /// <param name="pos">Worldspace position to spawn the object</param>
     /// <param name="rot">Worldspace rotation to give the object</param>
-    public static UniTask<AssetPoolee> SpawnAsync(this SpawnableCrate crate, Vector3 pos, Quaternion rot)
+    public static UniTask<Poolee> SpawnAsync(this SpawnableCrate crate, Vector3 pos, Quaternion rot)
     {
         Spawnable spawn = Barcodes.ToSpawnable(crate.Barcode.ID);
-        return AssetSpawner.SpawnAsync(spawn, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+        return AssetSpawner.SpawnAsync(spawn, pos, rot, new Il2CppSystem.Nullable<Vector3>(), null, false, null, null);
     }
 
     /// <summary>
@@ -596,11 +599,11 @@ public static class Extensions
     /// <param name="enableOnSpawn"></param>
     public static void Spawn(this Spawnable spawnable, Vector3 pos, Quaternion rot, bool? enableOnSpawn = null)
     {
-        Action<GameObject> callback = null;
+        System.Action<GameObject> callback = null;
         if (enableOnSpawn.HasValue) 
-            callback = new Action<GameObject>(go => go.SetActive(enableOnSpawn.Value));
+            callback = new System.Action<GameObject>(go => go.SetActive(enableOnSpawn.Value));
         
-        AssetSpawner.Spawn(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), callback, null);
+        AssetSpawner.Spawn(spawnable, pos, rot, new Il2CppSystem.Nullable<Vector3>(), null, false, null, callback, null);
     }
 
     /// <summary>
@@ -609,20 +612,20 @@ public static class Extensions
     /// <param name="spawnable">oo ee oo aa aa ting tang walla walla bing bang</param>
     /// <param name="pos">Worldspace position to spawn the object</param>
     /// <param name="rot">Worldspace rotation to give the object</param>
-    public static UniTask<AssetPoolee> SpawnAsync(this Spawnable spawnable, Vector3 pos, Quaternion rot)
+    public static UniTask<Poolee> SpawnAsync(this Spawnable spawnable, Vector3 pos, Quaternion rot)
     {
-        return AssetSpawner.SpawnAsync(spawnable, pos, rot, new BoxedNullable<Vector3>(null), false, new BoxedNullable<int>(null), null, null);
+        return AssetSpawner.SpawnAsync(spawnable, pos, rot, new Il2CppSystem.Nullable<Vector3>(), null, false, null, null);
     }
 
     /// <summary>
-    /// Spawns another <see cref="AssetPoolee"/> from the given <see cref="AssetPoolee"/>'s <see cref="AssetPool"/>.
+    /// Spawns another <see cref="Poolee"/> from the given <see cref="Poolee"/>'s <see cref="Poolee"/>.
     /// </summary>
     /// <param name="asspoole">https://media.tenor.com/images/1af43e40653cb90765d776fedf0186cf/tenor.gif</param>
     /// <param name="pos">Worldspace position to spawn the object</param>
     /// <param name="rot">Worldspace rotation to give the object</param>
-    public static void Dupe(this AssetPoolee asspoole, Vector3 pos, Quaternion rot)
+    public static void Dupe(this Poolee asspoole, Vector3 pos, Quaternion rot)
     {
-        asspoole.spawnableCrate.Spawn(pos, rot);
+        asspoole.SpawnableCrate.Spawn(pos, rot);
     }
 
     /// <summary>
@@ -667,7 +670,7 @@ public static class Extensions
     /// <exception cref="Exception">Unknown field type. </exception>
     public static FieldType GetStatic<FieldType>(this AndroidJavaObject ajo, string fieldName)
     {
-        IntPtr fieldID = AndroidJNIHelper.GetFieldID<FieldType>(ajo.m_jclass, fieldName, true);
+        System.IntPtr fieldID = AndroidJNIHelper.GetFieldID<FieldType>(ajo.m_jclass, fieldName, true);
         //if (Il2CppClassPointerStore<FieldType>.NativeClassPtr == IntPtr.Zero)
         //    throw new NotSupportedException($"The ");
 
@@ -713,28 +716,28 @@ public static class Extensions
 
         if (typeof(FieldType) == typeof(AndroidJavaClass))
         {
-            IntPtr staticObjectField = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
+            System.IntPtr staticObjectField = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
             
-            return (staticObjectField == IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField));
+            return (staticObjectField == System.IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField));
         }
 
         if (typeof(FieldType) == typeof(AndroidJavaObject))
         {
-            IntPtr staticObjectField2 = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
-            return (staticObjectField2 == IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField2));
+            System.IntPtr staticObjectField2 = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
+            return (staticObjectField2 == System.IntPtr.Zero) ? default(FieldType) : ((FieldType)(object)AndroidJavaObject.AndroidJavaObjectDeleteLocalRef(staticObjectField2));
         }
 
-        if (typeof(FieldType).IsAssignableFrom(typeof(Array)))
+        if (typeof(FieldType).IsAssignableFrom(typeof(System.Array)))
             throw new Il2CppConversionException("Arrays must be retrieved as their IL2CPP types, not their Mono domain types.");
 
-        if (AndroidReflection.IsAssignableFrom(Il2CppType.Of<Il2CppSystem.Array>(), Il2CppType.Of<FieldType>()))
+        if (AndroidReflection.IsAssignableFrom(Il2CppType.Of<System.Array>(), Il2CppType.Of<FieldType>()))
         {
             throw new Il2CppConversionException("Arrays cannot be retrieved. Too much wonk. If you wish to get arrays, implement it and test it.");
             //IntPtr staticObjectField3 = AndroidJNISafe.GetStaticObjectField(ajo.m_jclass, fieldID);
             //return AndroidJavaObject.FromJavaArrayDeleteLocalRef<FieldType>(staticObjectField3);
         }
 
-        throw new Exception("JNI: Unknown field type '" + typeof(FieldType).ToString() + "'");
+        throw new System.Exception("JNI: Unknown field type '" + typeof(FieldType).ToString() + "'");
     }
 
     /// <summary>

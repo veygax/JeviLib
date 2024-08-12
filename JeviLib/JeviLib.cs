@@ -18,9 +18,12 @@ using Jevil.Spawning;
 using Jevil.Tweening;
 using MelonLoader;
 using MelonLoader.Assertions;
-using SLZ.Utilities;
+using Il2CppSLZ.Utilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Il2CppSLZ.Marrow.Audio;
+using Il2CppSLZ.Marrow;
+using UnityEngine.Playables;
 
 namespace Jevil;
 
@@ -75,18 +78,18 @@ public class JeviLib : MelonMod
         Stopwatch sw = Stopwatch.StartNew();
         
 #if DEBUG
-        this.standardJevilTokens.Add(DebugDraw.Button("Remove JeviLib Debug tokens", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
-        this.standardJevilTokens.Add(DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); this.tweenTarget.GetComponent<Renderer>().material.shader = Shader.Find(Const.UrpLitName); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.one, 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Scl -> V3.Zero", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.zero, 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
-        this.standardJevilTokens.Add(DebugDraw.Button("Test spawning", GUIPosition.TOP_LEFT, TestSpawning));
-        this.standardJevilTokens.Add(DebugDraw.Button("Test UniTask async", GUIPosition.TOP_LEFT, TestUniTaskAsync));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Remove JeviLib Debug tokens", GUIPosition.TOP_RIGHT, this.ClearStandardTokens));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Spawn cube", GUIPosition.TOP_LEFT, () => { this.tweenTarget = GameObject.CreatePrimitive(PrimitiveType.Cube); this.tweenTarget.GetComponent<Renderer>().material.shader = Shader.Find(Const.UrpLitName); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Pos -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(Vector3.one, 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Pos -> -V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenPosition(-Vector3.one, 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Scl -> V3.One", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.one, 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Scl -> V3.Zero", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenLocalScale(Vector3.zero, 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Rot -> Euler(V3.Zero)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 0, 0), 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Rot -> Euler(0,180,0)", GUIPosition.TOP_LEFT, () => { this.tweenTarget.transform.TweenRotation(Quaternion.Euler(0, 180, 0), 1); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Test spawning", GUIPosition.TOP_LEFT, TestSpawning));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("Test UniTask async", GUIPosition.TOP_LEFT, TestUniTaskAsync));
         
-        this.standardJevilTokens.Add(DebugDraw.Button("PBM.CNSPU", GUIPosition.TOP_RIGHT, () => { PopupBoxManager.CreateNewShibePopup(); }));
+        this.standardJevilTokens.Add(Jevil.IMGUI.DebugDraw.Button("PBM.CNSPU", GUIPosition.TOP_RIGHT, () => { PopupBoxManager.CreateNewShibePopup(); }));
 
         for (int i = 0; i < paginateTokens.Length / 3; i++)
         {
@@ -115,7 +118,7 @@ public class JeviLib : MelonMod
 
         Task.Run(this.GetNamespaces);
 
-        Hooking.OnLevelInitialized += (li) => { OnSceneWasInitialized(-1, li.barcode); };
+        Hooking.OnLevelLoaded += (li) => { OnSceneWasInitialized(-1, li.barcode); };
 
         sw.Stop();
         LoggerInstance.Msg(ConsoleColor.Blue, $"Pre-initialized {nameof(JeviLib)} v{JevilBuildInfo.VERSION}{(JevilBuildInfo.DEBUG ? " Debug (Development)" : "")} in {sw.ElapsedMilliseconds}ms");
@@ -216,17 +219,17 @@ public class JeviLib : MelonMod
 #endif
         // Grab the necessary references when the scene starts. 
         Instances.Player_BodyVitals =
-            GameObject.FindObjectOfType<SLZ.VRMK.BodyVitals>();
+            GameObject.FindObjectOfType<Il2CppSLZ.Bonelab.BodyVitals>();
         if (Instances.Player_BodyVitals.INOC())
             return;
         Instances.Player_RigManager =
-            GameObject.FindObjectOfType<SLZ.Rig.RigManager>();
+            GameObject.FindObjectOfType<Il2CppSLZ.Marrow.RigManager>();
         Instances.Player_PhysicsRig =
-            GameObject.FindObjectOfType<SLZ.Rig.PhysicsRig>();
+            GameObject.FindObjectOfType<Il2CppSLZ.Marrow.PhysicsRig>();
         Instances.Player_Health =
             GameObject.FindObjectOfType<Player_Health>();
         Instances.Audio_Manager =
-            GameObject.FindObjectOfType<Audio_Manager>();
+            GameObject.FindObjectOfType<Audio3dManager>();
         Instances.MusicMixer = //todo: get mixer names from runtime game
             Instances.Audio_Manager.audioMixer.FindMatchingGroups("Music").First();
         Instances.SFXMixer =
@@ -239,7 +242,7 @@ public class JeviLib : MelonMod
         Instances.InHeadsetCam =
             Instances.RigCameras.FirstOrDefault(c => c.name == "Head");
 
-        Transform pHead = Player.playerHead;
+        Transform pHead = Player.Head;
 
         GameObject musicPlayer = new("JeviLib Music Player");
         musicPlayer.transform.parent = pHead.transform;
@@ -274,7 +277,7 @@ public class JeviLib : MelonMod
     {
         try
         {
-            List<GUIToken> tokens = DebugDraw.GetTokens();
+            List<GUIToken> tokens = Jevil.IMGUI.DebugDraw.GetTokens();
 
             try
             {
@@ -321,7 +324,7 @@ public class JeviLib : MelonMod
             int yStart = GuiCornerDist;
             if (paginates[screenCorner])
                 topLeft = topLeft.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
-            if (DebugDraw.IsActive) topLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topLeft);
+            if (Jevil.IMGUI.DebugDraw.IsActive) topLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topLeft);
             foreach (GUIToken token in topLeft)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -344,7 +347,7 @@ public class JeviLib : MelonMod
             yStart = GuiCornerDist;
             if (paginates[screenCorner])
                 topRight = topRight.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
-            if (DebugDraw.IsActive) topRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topRight);
+            if (Jevil.IMGUI.DebugDraw.IsActive) topRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(topRight);
             foreach (GUIToken token in topRight)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -367,7 +370,7 @@ public class JeviLib : MelonMod
             yStart = Screen.height - GuiCornerDist;
             if (paginates[screenCorner])
                 bottomLeft = bottomLeft.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
-            if (DebugDraw.IsActive) bottomLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomLeft);
+            if (Jevil.IMGUI.DebugDraw.IsActive) bottomLeft = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomLeft);
             foreach (GUIToken token in bottomLeft)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -390,7 +393,7 @@ public class JeviLib : MelonMod
             yStart = Screen.height - GuiCornerDist;
             if (paginates[screenCorner])
                 bottomRight = bottomRight.Skip(pagination[screenCorner] * drawnPerColumn).Take(drawnPerColumn);
-            if (DebugDraw.IsActive) bottomRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomRight);
+            if (Jevil.IMGUI.DebugDraw.IsActive) bottomRight = paginateTokens.Skip(screenCorner * 3).Take(3).Concat(bottomRight);
             foreach (GUIToken token in bottomRight)
             {
                 if (maxWidth < token.width) maxWidth = token.width;
@@ -531,8 +534,8 @@ public class JeviLib : MelonMod
 
     #region MelonLogger replacements
 
-    internal static void Log(string str, ConsoleColor conCol = ConsoleColor.Gray) => instance.LoggerInstance.Msg(conCol, str);
-    internal static void Log(object obj, ConsoleColor conCol = ConsoleColor.Gray) => instance.LoggerInstance.Msg(conCol, obj?.ToString() ?? "null");
+    internal static void Log(string str) => instance.LoggerInstance.Msg(str);
+    internal static void Log(object obj) => instance.LoggerInstance.Msg(obj?.ToString() ?? "null");
     internal static void Warn(string str) => instance.LoggerInstance.Warning(str);
     internal static void Warn(object obj) => instance.LoggerInstance.Warning(obj?.ToString() ?? "null");
     internal static void Error(string str) => instance.LoggerInstance.Error(str);
@@ -546,7 +549,7 @@ public class JeviLib : MelonMod
     {
         foreach (GUIToken token in this.standardJevilTokens)
         {
-            DebugDraw.Dont(token);
+            Jevil.IMGUI.DebugDraw.Dont(token);
         }
 
         this.standardJevilTokens.Clear();
@@ -560,7 +563,7 @@ public class JeviLib : MelonMod
     private async void TestUniTaskAsync()
     {
         Log("Waiting 2sec");
-        await UniTask.Delay(Il2CppSystem.TimeSpan.FromSeconds(2), DelayType.UnscaledDeltaTime, PlayerLoopTiming.Update, new Il2CppSystem.Threading.CancellationToken());
+        await UniTask.Delay((int)Il2CppSystem.TimeSpan.FromSeconds(2).TotalMilliseconds, true, PlayerLoopTiming.Update, new CancellationToken());
         Log("Hello after waiting 2sec!");
         Log("Are we still on the main thread?");
         GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -570,7 +573,7 @@ public class JeviLib : MelonMod
         Log("Check-in 1");
         await UniTask.Delay(3000, DelayType.UnscaledDeltaTime);
         Log("Check-in 2");
-        await UniTask.Delay(Il2CppSystem.TimeSpan.FromSeconds(3), true);
+        await UniTask.Delay((int)Il2CppSystem.TimeSpan.FromSeconds(3).TotalMilliseconds, true);
         Log("Check-in 3! All checks passed!");
     }
 

@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using Il2CppCysharp.Threading.Tasks;
 using HarmonyLib;
 using Il2CppTimeSpan = Il2CppSystem.TimeSpan;
 using Il2CppSystem.Threading;

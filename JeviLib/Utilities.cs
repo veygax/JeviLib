@@ -1,12 +1,12 @@
 ﻿using BoneLib;
 using BoneLib.RandomShit;
-using Cysharp.Threading.Tasks;
+using Il2CppCysharp.Threading.Tasks;
 using HarmonyLib;
 using MelonLoader;
-using PuppetMasta;
-using SLZ.Interaction;
-using SLZ.Marrow.Pool;
-using SLZ.VRMK;
+using Il2CppPuppetMasta;
+using Il2CppSLZ.Interaction;
+using Il2CppSLZ.Marrow.Pool;
+using Il2CppSLZ.VRMK;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -23,8 +23,12 @@ using System.Runtime.Remoting;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UnhollowerBaseLib;
 using UnityEngine;
+using Il2CppInterop.Runtime;
+using Il2CppSLZ.Marrow.PuppetMasta;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppSLZ.Marrow;
+using MelonLoader.Utils;
 
 namespace Jevil;
 
@@ -53,14 +57,14 @@ public static class Utilities
     /// <summary>
     /// Uses <see cref="UnityEngine.Random.Range(int, int)"/> to determine what to return.
     /// </summary>
-    /// <returns><see cref="Player.leftHand"/> or <see cref="Player.rightHand"/></returns>
+    /// <returns><see cref="Player.LeftHand"/> or <see cref="Player.RightHand"/></returns>
     public static Hand GetRandomPlayerHand()
     {
         int randomNum = UnityEngine.Random.Range(0, 2);
         if (randomNum == 1)
-            return Player.leftHand;
+            return Player.LeftHand;
         else
-            return Player.rightHand;
+            return Player.RightHand;
     }
 
     /// <summary>
@@ -83,7 +87,7 @@ public static class Utilities
     public static IEnumerable<T> FindAll<T>() where T : UnityEngine.Object
     {
         // cannot use LINQ .Cast<T> as that does not use the IL2CPP Cast method
-        return GameObject.FindObjectsOfTypeAll(UnhollowerRuntimeLib.Il2CppType.Of<T>()).Select(obj => obj.Cast<T>());
+        return GameObject.FindObjectsOfTypeAll(Il2CppType.Of<T>()).Select(obj => obj.Cast<T>());
     }
 
     /// <summary>
@@ -167,7 +171,7 @@ public static class Utilities
     /// <param name="obj">The object to move and rotate</param>
     public static void MoveAndFacePlayer(GameObject obj)
     {
-        Transform phead = Player.playerHead;
+        Transform phead = Player.Head;
         Vector3 position = phead.position + phead.forward.normalized * 2;
         Quaternion rotation = Quaternion.LookRotation(obj.transform.position - phead.position, Vector3.up);
         obj.transform.SetPositionAndRotation(position, rotation);
@@ -312,9 +316,9 @@ public static class Utilities
     {
         byte[] res = new byte[Const.SizeV3 * 2];
 
-        Vector3 inFrontOfPlayer = Player.playerHead.position + Player.playerHead.forward * 2;
+        Vector3 inFrontOfPlayer = Player.Head.position + Player.Head.forward * 2;
         inFrontOfPlayer.ToBytes().CopyTo(res, 0);
-        Quaternion.LookRotation(-Player.playerHead.forward).eulerAngles.ToBytes().CopyTo(res, Const.SizeV3);
+        Quaternion.LookRotation(-Player.Head.forward).eulerAngles.ToBytes().CopyTo(res, Const.SizeV3);
 
         return res;
     }
@@ -358,7 +362,7 @@ public static class Utilities
     /// <returns>The rigidbodies of the muscles. I'm not sure if they're assured to be not <see langword="null"/>, so you may want to run </returns>
     public static IEnumerable<Rigidbody> GetMuscleRigidbodies(PuppetMaster puppet)
     {
-        return puppet.muscles.Select(s => s.rigidbody);
+        return puppet.muscles.Select(s => s.rigidBody);
     }
 
     /// <summary>
@@ -601,7 +605,7 @@ public static class Utilities
     {
         if (uniTasksNeedPatch.HasValue) return uniTasksNeedPatch.Value;
 
-        Type[] implementedInterfaces = typeof(Cysharp.Threading.Tasks.UniTask.Awaiter).GetInterfaces();
+        Type[] implementedInterfaces = typeof(Il2CppCysharp.Threading.Tasks.UniTask.Awaiter).GetInterfaces();
         uniTasksNeedPatch = implementedInterfaces.Length == 0;
 #if DEBUG
         JeviLib.Log($"UniTask Awaiter implements {implementedInterfaces.Length} interfaces. Fix needs application? {uniTasksNeedPatch}");
@@ -627,7 +631,7 @@ public static class Utilities
             StartInfo = new ProcessStartInfo()
             {
                 FileName = Application.dataPath.Replace("_Data", ".exe"), // this path should only be hit on win, i think im good
-                WorkingDirectory = MelonUtils.BaseDirectory,
+                WorkingDirectory = MelonEnvironment.MelonBaseDirectory,
             },
         }.Start();
         Application.Quit();
@@ -656,7 +660,7 @@ public static class Utilities
 
         AndroidJavaClass up = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
         AndroidJavaObject ca = up.GetStatic<AndroidJavaObject>("currentActivity");
-        AndroidJavaObject packageManager = ca.Call<AndroidJavaObject>("getPackageManager", new UnhollowerBaseLib.Il2CppReferenceArray<Il2CppSystem.Object>(0));
+        AndroidJavaObject packageManager = ca.Call<AndroidJavaObject>("getPackageManager", new Il2CppReferenceArray<Il2CppSystem.Object>(0));
         AndroidJavaObject launchIntent = null;
         //if the app is installed, no errors. Else, doesn't get past next line
         try

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UnhollowerBaseLib;
 
 namespace Jevil;
 
@@ -107,7 +106,7 @@ public class Il2CppThreadScope : IDisposable
 #if DEBUG
             JeviLib.Log("Attaching IL2CPP to current thread");
 #endif
-            thisThreadInIl2Cpp = IL2CPP.il2cpp_thread_attach(IL2CPP.il2cpp_domain_get());
+            thisThreadInIl2Cpp = Il2Cpp.il2cpp_thread_attach(Il2Cpp.il2cpp_domain_get());
         }
     }
 
@@ -122,7 +121,7 @@ public class Il2CppThreadScope : IDisposable
 #if DEBUG
             JeviLib.Log("Detaching IL2CPP from current thread");
 #endif
-            IL2CPP.il2cpp_thread_detach(thisThreadInIl2Cpp);
+            Il2Cpp.il2cpp_thread_detach(thisThreadInIl2Cpp);
             thisThreadInIl2Cpp = IntPtr.Zero;
         }
     }
